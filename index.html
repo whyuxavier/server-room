@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>SERVER ROOM - Retro Pixel Art Educational Game</title>
+  <title>SERVER ROOM - Retro Pixel Educational Game</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
@@ -321,15 +321,15 @@
     const TASKS_DATA = [
       {
         id: 1,
-        desc: "Немає оперативної пам'яті. Знайдіть компонент для тимчасового зберігання даних програм.",
-        correctItem: "ram",
-        explanation: "Чудово! RAM (ОЗП) тимчасово зберігає дані, які зараз використовує процесор."
-      },
-      {
-        id: 2,
         desc: "Немає накопичувача для ОС і файлів. Знайдіть його.",
         correctItem: "ssd",
         explanation: "Правильно! SSD швидко й постійно зберігає ОС, програми та файли."
+      },
+      {
+        id: 2,
+        desc: "Немає оперативної пам'яті. Знайдіть деталь для тимчасового зберігання даних програм.",
+        correctItem: "ram",
+        explanation: "Чудово! RAM (ОЗП) працює та зберігає дані, які зараз використовує процесор."
       },
       {
         id: 3,
@@ -341,19 +341,19 @@
         id: 4,
         desc: "Техніку нічого не видно: немає пристрою відображення. Знайдіть його.",
         correctItem: "monitor",
-        explanation: "Точно! Монітор виводить зображення для техніка."
+        explanation: "Ура! Новий монітор виводить зображення."
       },
       {
         id: 5,
         desc: "Сервер без мережі. Знайдіть кабель для дротового з'єднання.",
         correctItem: "ethernet",
-        explanation: "Вітаємо! Ethernet дає надійне дротове з'єднання з мережею."
+        explanation: "Супер! Ethernet дає надійне дротове з'єднання з мережею."
       }
     ];
 
     // Level 0 - preparation stage (collect every scattered object before Level 1)
     const LEVEL0_DATA = {
-      desc: "Вітаю! Розкладіть усі предмети по столах: беріть з підлоги (E) і кладіть на стіл (E). Ті, що вже на столах, зараховано."
+      desc: "Треба навести порядок! Розкладіть усі предмети, які лежать на підлозі по столах. Натисніть [E] щоб підняти чи покласти предмет."
     };
 
     const DISTRACTOR_FEEDBACK = {
@@ -373,7 +373,7 @@
       ethernet: "Кабель Ethernet",
       coffee: "Кавуся",
       fire_extinguisher: "Вогнегасник",
-      book: "Сервери (книга для чайників)",
+      book: "Сервер (книга для чайників)",
       keyboard: "Клавіатура",
       mouse: "Миша",
       usb: "Флешка"
@@ -400,75 +400,227 @@
       ctx.fillRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
     }
 
+    // --- PIXEL ART HELPERS ---
+    const OUTLINE_COLOR = '#0b0f19';
+
+    // Draws a sprite with a crisp 1px dark outline around its silhouette
+    function withOutline(ctx, w, h, drawFn, color = OUTLINE_COLOR) {
+      const art = document.createElement('canvas');
+      art.width = w; art.height = h;
+      const artCtx = art.getContext('2d');
+      artCtx.imageSmoothingEnabled = false;
+      drawFn(artCtx, w, h);
+
+      const sil = document.createElement('canvas');
+      sil.width = w; sil.height = h;
+      const silCtx = sil.getContext('2d');
+      silCtx.imageSmoothingEnabled = false;
+      silCtx.drawImage(art, 0, 0);
+      silCtx.globalCompositeOperation = 'source-in';
+      silCtx.fillStyle = color;
+      silCtx.fillRect(0, 0, w, h);
+
+      [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(([ox, oy]) => ctx.drawImage(sil, ox, oy));
+      ctx.drawImage(art, 0, 0);
+    }
+
+    // Pixel-perfect filled circle (no anti-aliasing)
+    function drawPixelDisc(ctx, color, cx, cy, r) {
+      for (let y = -r; y <= r; y++) {
+        for (let x = -r; x <= r; x++) {
+          if (x * x + y * y <= r * r + r * 0.5) drawPixelRect(ctx, color, cx + x, cy + y, 1, 1);
+        }
+      }
+    }
+
+    // --- ENVIRONMENT SPRITES ---
     function generateFloorTile(ctx, w, h) {
-      ctx.fillStyle = '#161b22'; ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, w, 1); ctx.fillRect(0, 0, 1, h);
-      ctx.fillStyle = '#21262d'; ctx.fillRect(6, 6, 2, 2); ctx.fillRect(20, 18, 2, 2);
+      drawPixelRect(ctx, '#1a2130', 0, 0, w, h);
+      drawPixelRect(ctx, '#252f44', 0, 0, w, 1);
+      drawPixelRect(ctx, '#252f44', 0, 0, 1, h);
+      drawPixelRect(ctx, '#0d121c', 0, h - 1, w, 1);
+      drawPixelRect(ctx, '#0d121c', w - 1, 0, 1, h);
+      // inner raised panel
+      drawPixelRect(ctx, '#1f293b', 3, 3, w - 6, h - 6);
+      drawPixelRect(ctx, '#2b3850', 3, 3, w - 6, 1);
+      drawPixelRect(ctx, '#2b3850', 3, 3, 1, h - 6);
+      drawPixelRect(ctx, '#141b29', 3, h - 4, w - 6, 1);
+      drawPixelRect(ctx, '#141b29', w - 4, 3, 1, h - 6);
+      // ventilation perforation
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+          drawPixelRect(ctx, '#0f1522', 8 + i * 7, 8 + j * 7, 2, 2);
+          drawPixelRect(ctx, '#2e3b54', 8 + i * 7, 10 + j * 7, 2, 1);
+        }
+      }
     }
 
     function generateWallTile(ctx, w, h) {
-      ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = '#161b22'; ctx.fillRect(2, 2, w - 4, h - 4);
-      ctx.fillStyle = '#30363d'; ctx.fillRect(2, 2, w - 4, 2);
+      drawPixelRect(ctx, '#0b0f19', 0, 0, w, h);
+      drawPixelRect(ctx, '#1b2438', 1, 1, w - 2, h - 2);
+      drawPixelRect(ctx, '#34425e', 1, 1, w - 2, 2);
+      drawPixelRect(ctx, '#2a3650', 1, 1, 2, h - 2);
+      drawPixelRect(ctx, '#0f1523', 1, h - 3, w - 2, 2);
+      drawPixelRect(ctx, '#131b2c', w - 3, 1, 2, h - 2);
+      // horizontal seam
+      drawPixelRect(ctx, '#0f1523', 3, 15, w - 6, 2);
+      drawPixelRect(ctx, '#2a3650', 3, 17, w - 6, 1);
+      // rivets
+      [[5, 6], [w - 7, 6], [5, h - 10], [w - 7, h - 10]].forEach(([rx, ry]) => {
+        drawPixelRect(ctx, '#6b7c9b', rx, ry, 2, 2);
+        drawPixelRect(ctx, '#0b0f19', rx + 1, ry + 1, 1, 1);
+      });
     }
 
     function generateServerRack(ctx, w, h, isInstalledCount = 0) {
-      drawPixelRect(ctx, '#090d16', 0, 0, w, h);
-      drawPixelRect(ctx, '#161b22', 2, 2, w - 4, h - 4);
-      for (let i = 0; i < 4; i++) {
-        const y = 6 + i * 18;
-        drawPixelRect(ctx, '#0d1117', 6, y, w - 12, 14);
-        drawPixelRect(ctx, '#30363d', 8, y + 2, w - 16, 2);
-        drawPixelRect(ctx, '#000000', 10, y + 6, 16, 4);
-        const isOnline = i < isInstalledCount;
-        drawPixelRect(ctx, isOnline ? '#10b981' : '#ef4444', w - 18, y + 6, 3, 3);
-        drawPixelRect(ctx, isOnline ? '#3b82f6' : '#64748b', w - 12, y + 6, 3, 3);
+      drawPixelRect(ctx, '#05080f', 0, 0, w, h);
+      drawPixelRect(ctx, '#1f2a3d', 1, 1, w - 2, h - 2);
+      drawPixelRect(ctx, '#34425e', 1, 1, w - 2, 2);
+      drawPixelRect(ctx, '#2c3a54', 1, 1, 2, h - 2);
+      drawPixelRect(ctx, '#121a29', w - 3, 1, 2, h - 2);
+      drawPixelRect(ctx, '#121a29', 1, h - 3, w - 2, 2);
+      drawPixelRect(ctx, '#0b111c', 5, 5, w - 10, h - 10);
+
+      // 5 server units: one per repair task
+      for (let i = 0; i < 5; i++) {
+        const y = 8 + i * 23;
+        const on = i < isInstalledCount;
+        drawPixelRect(ctx, '#05080f', 7, y, w - 14, 19);
+        drawPixelRect(ctx, on ? '#3a4a66' : '#232d42', 8, y + 1, w - 16, 17);
+        drawPixelRect(ctx, on ? '#5a6e92' : '#34425e', 8, y + 1, w - 16, 1);
+        drawPixelRect(ctx, '#141b2b', 8, y + 17, w - 16, 1);
+        // vents
+        for (let k = 0; k < 3; k++) drawPixelRect(ctx, '#0b111c', 11, y + 5 + k * 3, 20, 1);
+        // drive bay
+        drawPixelRect(ctx, '#0b111c', 35, y + 4, 12, 9);
+        drawPixelRect(ctx, on ? '#14532d' : '#3b1218', 36, y + 5, 10, 7);
+        drawPixelRect(ctx, on ? '#22c55e' : '#7f1d1d', 37, y + 6, 4, 1);
+        // status LEDs
+        drawPixelRect(ctx, on ? '#4ade80' : '#ef4444', w - 14, y + 4, 3, 3);
+        drawPixelRect(ctx, on ? '#bbf7d0' : '#fca5a5', w - 14, y + 4, 1, 1);
+        drawPixelRect(ctx, on ? '#38bdf8' : '#475569', w - 14, y + 9, 3, 3);
+        // screws
+        drawPixelRect(ctx, '#8795b0', 9, y + 2, 1, 1);
+        drawPixelRect(ctx, '#8795b0', 9, y + 15, 1, 1);
       }
     }
 
     function generateWorkbench(ctx, w, h) {
-      drawPixelRect(ctx, '#484f58', 0, 0, w, h);
-      drawPixelRect(ctx, '#6e7681', 2, 2, w - 4, 4);
-      drawPixelRect(ctx, '#161b22', 0, h - 4, w, 4);
+      drawPixelRect(ctx, '#05080f', 0, 0, w, h);
+      // front panel
+      drawPixelRect(ctx, '#2b323d', 1, 37, w - 2, h - 38);
+      drawPixelRect(ctx, '#3a4350', 1, 37, w - 2, 2);
+      drawPixelRect(ctx, '#1b2028', 1, h - 3, w - 2, 2);
+      drawPixelRect(ctx, '#1b2028', w / 2 - 16, 41, 32, 3);
+      drawPixelRect(ctx, '#6b7686', w / 2 - 16, 40, 32, 1);
+      // top surface
+      drawPixelRect(ctx, '#5b6573', 1, 1, w - 2, 36);
+      drawPixelRect(ctx, '#8b97a8', 1, 1, w - 2, 2);
+      drawPixelRect(ctx, '#8b97a8', 1, 1, 2, 36);
+      drawPixelRect(ctx, '#3d4551', 1, 34, w - 2, 3);
+      drawPixelRect(ctx, '#3d4551', w - 3, 1, 2, 36);
+      // recessed item slots
+      for (let i = 0; i < 4; i++) {
+        const sx = 11 + i * 36;
+        drawPixelRect(ctx, '#4a5461', sx, 11, 26, 26);
+        drawPixelRect(ctx, '#38404b', sx, 11, 26, 1);
+        drawPixelRect(ctx, '#38404b', sx, 11, 1, 26);
+        drawPixelRect(ctx, '#6f7b8c', sx, 36, 26, 1);
+        drawPixelRect(ctx, '#6f7b8c', sx + 25, 11, 1, 26);
+      }
+    }
+
+    // --- CHARACTER SPRITES ---
+    function drawTechnician(ctx, frame, dir) {
+      const bounce = (frame % 2 === 1) ? -1 : 0;
+      const py = 3 + bounce;
+      const swing = frame === 1 ? 1 : (frame === 3 ? -1 : 0);
+      const side = (dir === 'left' || dir === 'right');
+
+      // legs and boots
+      const drawLeg = (x, lift) => {
+        drawPixelRect(ctx, '#1e40af', x, py + 16, 4, 6 - lift);
+        drawPixelRect(ctx, '#3b82f6', x, py + 16, 1, 6 - lift);
+        drawPixelRect(ctx, '#111827', x - 1, py + 22 - lift, 6, 4);
+        drawPixelRect(ctx, '#4b5563', x - 1, py + 22 - lift, 6, 1);
+      };
+      if (side) {
+        drawLeg(12 - swing * 2, 0);
+        drawLeg(16 + swing * 2, 0);
+      } else {
+        drawLeg(11, swing === 1 ? 1 : 0);
+        drawLeg(17, swing === -1 ? 1 : 0);
+      }
+
+      // torso: shirt + safety vest
+      drawPixelRect(ctx, '#1d4ed8', 9, py + 9, 14, 9);
+      drawPixelRect(ctx, '#f97316', 10, py + 9, 12, 9);
+      drawPixelRect(ctx, '#fb923c', 10, py + 9, 12, 1);
+      drawPixelRect(ctx, '#c2410c', 10, py + 17, 12, 1);
+      drawPixelRect(ctx, '#fde047', 10, py + 13, 12, 2);
+      if (dir === 'down') {
+        drawPixelRect(ctx, '#9a3412', 15, py + 10, 2, 7);
+      } else if (dir === 'up') {
+        drawPixelRect(ctx, '#fde047', 15, py + 10, 2, 7);
+      }
+      // tool belt
+      drawPixelRect(ctx, '#78350f', 9, py + 17, 14, 2);
+      drawPixelRect(ctx, '#facc15', 15, py + 17, 2, 2);
+
+      // arms
+      if (side) {
+        drawPixelRect(ctx, '#2563eb', 14, py + 10 + swing, 4, 6);
+        drawPixelRect(ctx, '#fcd5b5', 14, py + 16 + swing, 4, 2);
+      } else {
+        const la = swing === 1 ? -1 : (swing === -1 ? 1 : 0);
+        drawPixelRect(ctx, '#1d4ed8', 7, py + 9 + la, 2, 6);
+        drawPixelRect(ctx, '#1d4ed8', 23, py + 9 - la, 2, 6);
+        drawPixelRect(ctx, '#fcd5b5', 7, py + 15 + la, 2, 3);
+        drawPixelRect(ctx, '#fcd5b5', 23, py + 15 - la, 2, 3);
+      }
+
+      // head
+      drawPixelRect(ctx, '#fcd5b5', 10, py + 2, 12, 8);
+      if (dir === 'up') {
+        drawPixelRect(ctx, '#0284c7', 9, py, 14, 8);
+        drawPixelRect(ctx, '#38bdf8', 10, py, 12, 1);
+        drawPixelRect(ctx, '#075985', 13, py + 6, 6, 1);
+        drawPixelRect(ctx, '#fcd5b5', 13, py + 8, 6, 2);
+      } else {
+        drawPixelRect(ctx, '#0284c7', 9, py, 14, 4);
+        drawPixelRect(ctx, '#38bdf8', 10, py, 12, 1);
+        if (dir === 'down') {
+          drawPixelRect(ctx, '#075985', 10, py + 3, 12, 1);
+          drawPixelRect(ctx, '#fcd5b5', 9, py + 5, 1, 3);
+          drawPixelRect(ctx, '#fcd5b5', 22, py + 5, 1, 3);
+          drawPixelRect(ctx, '#1e1b4b', 12, py + 5, 2, 2);
+          drawPixelRect(ctx, '#1e1b4b', 18, py + 5, 2, 2);
+          drawPixelRect(ctx, '#f8fafc', 12, py + 5, 1, 1);
+          drawPixelRect(ctx, '#f8fafc', 18, py + 5, 1, 1);
+          drawPixelRect(ctx, '#b91c1c', 14, py + 8, 4, 1);
+        } else if (dir === 'left') {
+          drawPixelRect(ctx, '#075985', 6, py + 3, 7, 1);
+          drawPixelRect(ctx, '#0284c7', 17, py + 4, 5, 4);
+          drawPixelRect(ctx, '#1e1b4b', 11, py + 5, 2, 2);
+          drawPixelRect(ctx, '#f8fafc', 11, py + 5, 1, 1);
+          drawPixelRect(ctx, '#b91c1c', 10, py + 8, 2, 1);
+        } else {
+          drawPixelRect(ctx, '#075985', 19, py + 3, 7, 1);
+          drawPixelRect(ctx, '#0284c7', 10, py + 4, 5, 4);
+          drawPixelRect(ctx, '#1e1b4b', 19, py + 5, 2, 2);
+          drawPixelRect(ctx, '#f8fafc', 19, py + 5, 1, 1);
+          drawPixelRect(ctx, '#b91c1c', 20, py + 8, 2, 1);
+        }
+      }
     }
 
     function generatePlayerSprite(ctx, w, h, frame = 0, dir = 'down') {
       ctx.fillStyle = 'rgba(0,0,0,0.4)';
-      ctx.fillRect(8, 26, 16, 4);
-
-      const bounce = (frame % 2 === 1) ? -1 : 0;
-      const py = 2 + bounce;
-
-      drawPixelRect(ctx, '#1f2937', 10, py + 22, 5, 4);
-      drawPixelRect(ctx, '#1f2937', 17, py + 22, 5, 4);
-      drawPixelRect(ctx, '#1d4ed8', 11, py + 16, 4, 6);
-      drawPixelRect(ctx, '#1d4ed8', 17, py + 16, 4, 6);
-      drawPixelRect(ctx, '#0284c7', 9, py + 9, 14, 8);
-      drawPixelRect(ctx, '#38bdf8', 11, py + 10, 10, 2);
-      drawPixelRect(ctx, '#fca5a5', 10, py + 2, 12, 8);
-      drawPixelRect(ctx, '#78350f', 9, py, 14, 3);
-      drawPixelRect(ctx, '#0284c7', 7, py + 9, 2, 5);
-      drawPixelRect(ctx, '#0284c7', 23, py + 9, 2, 5);
-      drawPixelRect(ctx, '#fca5a5', 7, py + 14, 2, 3);
-      drawPixelRect(ctx, '#fca5a5', 23, py + 14, 2, 3);
-
-      ctx.fillStyle = '#1e1b4b';
-      if (dir === 'down') {
-        ctx.fillRect(12, py + 5, 2, 2);
-        ctx.fillRect(18, py + 5, 2, 2);
-        drawPixelRect(ctx, '#b91c1c', 14, py + 8, 4, 1);
-      } else if (dir === 'up') {
-        drawPixelRect(ctx, '#78350f', 9, py + 2, 14, 6);
-      } else if (dir === 'left') {
-        ctx.fillRect(11, py + 5, 2, 2);
-      } else if (dir === 'right') {
-        ctx.fillRect(19, py + 5, 2, 2);
-      }
+      ctx.fillRect(8, 27, 16, 3);
+      withOutline(ctx, w, h, (c) => drawTechnician(c, frame, dir));
     }
 
-    function generateProfessorSprite(ctx, w, h) {
-      ctx.fillStyle = 'rgba(0,0,0,0.4)';
-      ctx.fillRect(8, 26, 16, 4);
+    function drawProfessorBody(ctx, w, h) {
       const py = 2;
 
       drawPixelRect(ctx, '#111827', 10, py + 22, 5, 4);
@@ -502,68 +654,175 @@
       drawPixelRect(ctx, '#9ca3af', 12, py + 9, 8, 1);
     }
 
-    function drawItemSprite(ctx, type, size = 24) {
-      ctx.clearRect(0, 0, size, size);
+    function generateProfessorSprite(ctx, w, h) {
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillRect(8, 27, 16, 3);
+      withOutline(ctx, w, h, drawProfessorBody);
+    }
+
+    function drawItemArt(ctx, type) {
+      const R = (color, x, y, w, h) => drawPixelRect(ctx, color, x, y, w, h);
       switch (type) {
         case 'ram':
-          drawPixelRect(ctx, '#15803d', 2, 6, 20, 12);
-          drawPixelRect(ctx, '#eab308', 2, 18, 20, 2);
-          for (let i = 0; i < 4; i++) drawPixelRect(ctx, '#0d1117', 4 + i * 4.5, 8, 3, 7);
+          R('#15803d', 2, 6, 20, 11);
+          R('#4ade80', 2, 6, 20, 1);
+          R('#14532d', 2, 16, 20, 1);
+          for (let i = 0; i < 4; i++) {
+            R('#111827', 4 + i * 5, 8, 4, 6);
+            R('#4b5563', 4 + i * 5, 8, 4, 1);
+          }
+          R('#eab308', 2, 17, 20, 3);
+          for (let k = 0; k < 9; k++) R('#a16207', 4 + k * 2, 18, 1, 2);
+          ctx.clearRect(11, 17, 2, 3);
+          R('#9ca3af', 1, 9, 1, 5);
+          R('#9ca3af', 22, 9, 1, 5);
           break;
         case 'ssd':
-          drawPixelRect(ctx, '#30363d', 4, 4, 16, 16);
-          drawPixelRect(ctx, '#1f6feb', 6, 6, 12, 6);
-          drawPixelRect(ctx, '#8b949e', 6, 14, 8, 4);
+          R('#64748b', 3, 2, 18, 17);
+          R('#94a3b8', 3, 2, 18, 1);
+          R('#94a3b8', 3, 2, 1, 17);
+          R('#334155', 3, 18, 18, 1);
+          R('#334155', 20, 2, 1, 17);
+          R('#1d4ed8', 5, 5, 14, 8);
+          R('#60a5fa', 5, 5, 14, 1);
+          R('#e0f2fe', 7, 8, 8, 1);
+          R('#93c5fd', 7, 10, 5, 1);
+          R('#1e293b', 4, 3, 1, 1);
+          R('#1e293b', 19, 3, 1, 1);
+          R('#facc15', 6, 19, 12, 3);
+          for (let k = 0; k < 5; k++) R('#a16207', 7 + k * 2, 20, 1, 2);
           break;
         case 'gpu':
-          drawPixelRect(ctx, '#161b22', 2, 4, 20, 16);
-          drawPixelRect(ctx, '#30363d', 4, 6, 16, 12);
-          ctx.fillStyle = '#0d1117';
-          ctx.beginPath(); ctx.arc(8, 12, 3.5, 0, Math.PI*2); ctx.fill();
-          ctx.beginPath(); ctx.arc(16, 12, 3.5, 0, Math.PI*2); ctx.fill();
-          drawPixelRect(ctx, '#8b949e', 2, 2, 3, 20);
+          R('#cbd5e1', 1, 3, 3, 18);
+          R('#f1f5f9', 1, 3, 1, 18);
+          R('#475569', 2, 6, 1, 3);
+          R('#111827', 4, 5, 19, 12);
+          R('#374151', 4, 5, 19, 1);
+          R('#22d3ee', 6, 6, 15, 1);
+          [9, 18].forEach(cx => {
+            drawPixelDisc(ctx, '#030712', cx, 11, 4);
+            R('#475569', cx - 3, 11, 7, 1);
+            R('#475569', cx, 8, 1, 7);
+            drawPixelDisc(ctx, '#94a3b8', cx, 11, 1);
+          });
+          R('#eab308', 7, 17, 14, 3);
+          for (let k = 0; k < 6; k++) R('#a16207', 8 + k * 2, 18, 1, 2);
           break;
         case 'monitor':
-          drawPixelRect(ctx, '#0d1117', 2, 2, 20, 15);
-          drawPixelRect(ctx, '#38bdf8', 4, 4, 16, 11);
-          drawPixelRect(ctx, '#30363d', 10, 17, 4, 4);
-          drawPixelRect(ctx, '#21262d', 6, 21, 12, 2);
+          R('#374151', 1, 2, 22, 15);
+          R('#6b7280', 1, 2, 22, 1);
+          R('#0ea5e9', 3, 4, 18, 11);
+          R('#38bdf8', 3, 4, 18, 3);
+          R('#bae6fd', 4, 5, 5, 1);
+          R('#bae6fd', 4, 6, 3, 1);
+          R('#0369a1', 5, 9, 8, 1);
+          R('#0369a1', 5, 11, 12, 1);
+          R('#4ade80', 20, 15, 1, 1);
+          R('#4b5563', 10, 17, 4, 3);
+          R('#6b7280', 6, 20, 12, 2);
+          R('#9ca3af', 6, 20, 12, 1);
           break;
         case 'ethernet':
-          ctx.strokeStyle = '#1f6feb'; ctx.lineWidth = 3;
-          ctx.beginPath(); ctx.arc(12, 12, 7, 0, Math.PI * 1.8); ctx.stroke();
-          drawPixelRect(ctx, '#f0f6fc', 16, 6, 5, 5);
-          drawPixelRect(ctx, '#eab308', 19, 7, 2, 3);
+          for (let y = -9; y <= 9; y++) {
+            for (let x = -9; x <= 9; x++) {
+              const d2 = x * x + y * y;
+              if (d2 >= 36 && d2 <= 64 && !(x > 2 && y < -2)) {
+                R(x + y < 0 ? '#60a5fa' : '#2563eb', 11 + x, 13 + y, 1, 1);
+              }
+            }
+          }
+          R('#e2e8f0', 15, 2, 7, 8);
+          R('#94a3b8', 15, 9, 7, 1);
+          R('#f8fafc', 15, 2, 7, 1);
+          R('#eab308', 16, 7, 1, 2);
+          R('#eab308', 18, 7, 1, 2);
+          R('#eab308', 20, 7, 1, 2);
+          R('#2563eb', 17, 10, 3, 2);
           break;
         case 'coffee':
-          drawPixelRect(ctx, '#f0f6fc', 6, 8, 10, 12);
-          drawPixelRect(ctx, '#c9d1d9', 16, 10, 4, 8);
-          drawPixelRect(ctx, '#78350f', 8, 6, 6, 3);
+          R('#f8fafc', 5, 8, 12, 12);
+          R('#cbd5e1', 14, 8, 3, 12);
+          R('#94a3b8', 5, 19, 12, 1);
+          R('#78350f', 6, 9, 10, 2);
+          R('#a16207', 7, 9, 3, 1);
+          R('#f1f5f9', 17, 10, 4, 2);
+          R('#f1f5f9', 20, 12, 1, 4);
+          R('#f1f5f9', 17, 16, 4, 2);
+          R('#cbd5e1', 8, 3, 1, 2);
+          R('#cbd5e1', 9, 5, 1, 2);
+          R('#cbd5e1', 12, 2, 1, 3);
+          R('#cbd5e1', 13, 5, 1, 2);
           break;
         case 'fire_extinguisher':
-          drawPixelRect(ctx, '#da3633', 7, 6, 10, 15);
-          drawPixelRect(ctx, '#8e1519', 7, 6, 3, 15);
-          drawPixelRect(ctx, '#0d1117', 10, 2, 4, 4);
-          drawPixelRect(ctx, '#0d1117', 14, 4, 5, 2);
+          R('#dc2626', 7, 7, 10, 14);
+          R('#f87171', 7, 7, 2, 14);
+          R('#991b1b', 15, 7, 2, 14);
+          R('#7f1d1d', 7, 20, 10, 2);
+          R('#f8fafc', 9, 12, 6, 5);
+          R('#dc2626', 10, 14, 4, 1);
+          R('#111827', 10, 4, 4, 3);
+          R('#111827', 7, 3, 10, 2);
+          R('#374151', 14, 3, 5, 2);
+          R('#facc15', 11, 5, 2, 2);
+          R('#111827', 17, 5, 1, 6);
+          R('#111827', 18, 10, 3, 2);
           break;
         case 'book':
-          drawPixelRect(ctx, '#0969da', 4, 4, 16, 17);
-          drawPixelRect(ctx, '#f0f6fc', 6, 5, 12, 2);
-          drawPixelRect(ctx, '#eab308', 8, 10, 8, 4);
+          R('#1d4ed8', 4, 3, 16, 18);
+          R('#60a5fa', 4, 3, 16, 1);
+          R('#1e3a8a', 4, 3, 3, 18);
+          R('#1e3a8a', 4, 20, 16, 1);
+          R('#f8fafc', 20, 4, 2, 16);
+          R('#cbd5e1', 20, 7, 2, 1);
+          R('#cbd5e1', 20, 11, 2, 1);
+          R('#cbd5e1', 20, 15, 2, 1);
+          R('#facc15', 9, 7, 8, 5);
+          R('#a16207', 10, 9, 6, 1);
+          R('#e2e8f0', 11, 15, 4, 3);
           break;
         case 'keyboard':
-          drawPixelRect(ctx, '#21262d', 2, 8, 20, 10);
-          drawPixelRect(ctx, '#f0f6fc', 4, 10, 16, 6);
+          R('#334155', 1, 7, 22, 12);
+          R('#64748b', 1, 7, 22, 1);
+          R('#0f172a', 1, 18, 22, 1);
+          for (let row = 0; row < 2; row++) {
+            for (let col = 0; col < 5; col++) {
+              R('#e2e8f0', 3 + col * 4, 9 + row * 3, 3, 2);
+              R('#94a3b8', 3 + col * 4, 10 + row * 3, 3, 1);
+            }
+          }
+          R('#e2e8f0', 6, 15, 12, 2);
+          R('#94a3b8', 6, 16, 12, 1);
           break;
         case 'mouse':
-          drawPixelRect(ctx, '#f2f2f2', 8, 6, 8, 12);
-          drawPixelRect(ctx, '#0d1117', 11, 6, 2, 4);
+          R('#e5e7eb', 7, 4, 10, 16);
+          ctx.clearRect(7, 4, 1, 1);
+          ctx.clearRect(16, 4, 1, 1);
+          ctx.clearRect(7, 19, 1, 1);
+          ctx.clearRect(16, 19, 1, 1);
+          R('#ffffff', 8, 5, 2, 9);
+          R('#9ca3af', 15, 6, 2, 13);
+          R('#6b7280', 8, 10, 8, 1);
+          R('#6b7280', 12, 4, 1, 6);
+          R('#374151', 11, 6, 2, 3);
           break;
         case 'usb':
-          drawPixelRect(ctx, '#1f6feb', 8, 10, 8, 10);
-          drawPixelRect(ctx, '#8b949e', 10, 4, 4, 6);
+          R('#cbd5e1', 8, 2, 8, 7);
+          R('#f1f5f9', 8, 2, 8, 1);
+          R('#1e293b', 10, 4, 1, 2);
+          R('#1e293b', 13, 4, 1, 2);
+          R('#1d4ed8', 6, 9, 12, 12);
+          R('#60a5fa', 6, 9, 12, 1);
+          R('#1e3a8a', 16, 9, 2, 12);
+          R('#e0f2fe', 8, 13, 6, 4);
+          R('#1d4ed8', 9, 15, 4, 1);
+          ctx.clearRect(15, 18, 2, 2);
           break;
       }
+    }
+
+    function drawItemSprite(ctx, type, size = 24) {
+      ctx.clearRect(0, 0, size, size);
+      withOutline(ctx, size, size, (c) => drawItemArt(c, type));
     }
 
     // --- CANVAS ENGINE SETUP ---
@@ -1130,7 +1389,7 @@
       gameState.items.forEach(item => {
         if (item.installed || item === gameState.player.carriedItem) return;
         const itemCanvas = sprites.get('item_' + item.type, (c) => drawItemSprite(c, item.type), 24, 24);
-        ctx.drawImage(itemCanvas, item.x, item.y);
+        ctx.drawImage(itemCanvas, Math.round(item.x), Math.round(item.y));
       });
 
       // Render Professor NPC
@@ -1159,14 +1418,14 @@
         (c) => generatePlayerSprite(c, 32, 32, p.frame, p.dir),
         32, 32
       );
-      ctx.drawImage(playerCanvas, p.x - 4, p.y - 8);
+      ctx.drawImage(playerCanvas, Math.round(p.x) - 4, Math.round(p.y) - 8);
 
       // Render Carried Item AND Floating Item Name above player
       if (p.carriedItem) {
         const itemCanvas = sprites.get('item_' + p.carriedItem.type, (c) => drawItemSprite(c, p.carriedItem.type), 24, 24);
         const bob = Math.sin(Date.now() * 0.008) * 2;
         const itemY = p.y - 20 + bob;
-        ctx.drawImage(itemCanvas, p.x, itemY);
+        ctx.drawImage(itemCanvas, Math.round(p.x), Math.round(itemY));
 
         const itemName = ITEM_NAMES[p.carriedItem.type];
         ctx.font = '10px "Press Start 2P", cursive';
