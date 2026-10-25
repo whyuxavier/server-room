@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SERVER ROOM - Retro Pixel Art Educational Game</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+    body {
+      background-color: #050811;
+      color: #c9d1d9;
+      font-family: 'VT323', monospace;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: pan-y;
+    }
+
+    /* Game controls must not trigger page scroll on touch devices */
+    .dpad-btn, #btn-action { touch-action: none; }
+
+    /* Scrollable task text inside the sidebar */
+    .task-scroll { touch-action: pan-y; }
+
+    .pixel-font { font-family: 'Press Start 2P', cursive; }
+    .retro-font { font-family: 'VT323', monospace; }
+
+    canvas {
+      image-rendering: optimizeSpeed;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: pixelated;
+      -ms-interpolation-mode: nearest-neighbor;
+    }
+
+    .pixel-box {
+      background-color: #0f172a;
+      border: 3px solid #334155;
+      box-shadow: inset -2px -2px 0px #020617, inset 2px 2px 0px #475569;
+    }
+
+    .pixel-btn {
+      background-color: #1e293b;
+      border: 2px solid #38bdf8;
+      color: #f8fafc;
+      text-shadow: 1px 1px 0px #000;
+      box-shadow: inset -2px -2px 0px #020617, inset 2px 2px 0px #64748b;
+      transition: background-color 0.1s;
+    }
+
+    .pixel-btn:hover {
+      background-color: #0284c7;
+    }
+
+    .pixel-btn:active {
+      transform: translateY(1px);
+      box-shadow: inset 2px 2px 0px #020617, inset -2px -2px 0px #64748b;
+    }
+
+    .dpad-btn {
+      background: #1e293b;
+      border: 2px solid #64748b;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    .dpad-btn:active {
+      background: #0284c7;
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen select-none">
+
+  <!-- Main Container -->
+  <div class="relative flex flex-col items-center justify-center w-full h-full max-w-5xl p-2 md:p-4">
+
+    <!-- Game Viewport Container -->
+    <div class="relative w-full overflow-hidden flex justify-center items-center bg-black border-4 border-slate-800 rounded-sm">
+      
+      <!-- Game Canvas -->
+      <canvas id="gameCanvas" class="block w-full h-auto cursor-crosshair max-h-[75vh] object-contain"></canvas>
+
+      <!-- HUD: level status (top-left) and Pause button (top-right) -->
+      <div id="game-hud" class="invisible absolute top-2 left-2 right-2 flex justify-between items-start z-10 pointer-events-none">
+        <div id="status-chip" class="pixel-box px-2 py-1">
+          <span id="status-text" class="pixel-font text-[9px] md:text-[10px] text-cyan-300">РІВЕНЬ 0</span>
+        </div>
+        <button id="pause-btn" class="pixel-btn pixel-font text-[10px] px-3 py-2 pointer-events-auto shrink-0 ml-2">
+          [ ПАУЗА ]
+        </button>
+      </div>
+
+      <!-- Professor dialogue (gives the tasks) -->
+      <div id="npc-dialog" class="hidden absolute bottom-2 left-2 right-2 pixel-box p-2 md:p-3 z-20">
+        <div class="flex items-start gap-3">
+          <canvas id="npc-portrait" width="32" height="32" class="w-12 h-12 md:w-16 md:h-16 shrink-0 bg-slate-900 border-2 border-slate-600"></canvas>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <h4 class="pixel-font text-[10px] text-yellow-400">ПРОФЕСОР</h4>
+              <span id="npc-dialog-level" class="pixel-font text-[9px] text-slate-400 bg-slate-900 px-1 border border-slate-700"></span>
+            </div>
+            <p id="npc-dialog-text" class="retro-font text-base md:text-xl text-slate-200 leading-tight"></p>
+          </div>
+          <button id="npc-dialog-close" class="pixel-btn text-[10px] px-2 py-1 shrink-0">
+            ОК
+          </button>
+        </div>
+      </div>
+
+      <!-- Intro / Start Screen Overlay -->
+      <div id="intro-screen" class="absolute inset-0 bg-slate-950/95 z-30 flex flex-col items-center justify-center p-6 text-center">
+        <div class="pixel-box p-6 max-w-md bg-slate-900 border-4 border-cyan-500">
+          <h1 class="pixel-font text-lg md:text-xl text-cyan-400 mb-4 tracking-wider">SERVER ROOM</h1>
+          <div class="bg-slate-950 p-4 border border-slate-800 mb-6 text-left space-y-3">
+            <h2 class="pixel-font text-xs text-yellow-400 border-b border-slate-800 pb-2">КЕРУВАННЯ</h2>
+            <p class="retro-font text-lg text-slate-200">
+              <strong class="text-cyan-400">W A S D</strong> — рух персонажа
+            </p>
+            <p class="retro-font text-lg text-slate-200">
+              <strong class="text-yellow-400">E</strong> — взяти або покласти предмет, говорити з професором
+            </p>
+          </div>
+          <button id="start-game-btn" class="pixel-btn pixel-font text-xs px-6 py-3 uppercase w-full">
+            [ ПОЧАТИ ГРУ ]
+          </button>
+        </div>
+      </div>
+
+      <!-- Pause Menu Overlay -->
+      <div id="pause-screen" class="hidden absolute inset-0 bg-slate-950/90 z-30 flex flex-col items-center justify-center p-6 text-center">
+        <div class="pixel-box p-6 max-w-sm w-full bg-slate-900 border-4 border-slate-700 flex flex-col gap-4">
+          <h2 class="pixel-font text-sm md:text-base text-cyan-400 tracking-wider">SERVER ROOM</h2>
+          <hr class="border-slate-800">
+          
+          <button id="resume-btn" class="pixel-btn pixel-font text-xs py-2.5">
+            ПРОДОВЖИТИ
+          </button>
+          
+          <button id="controls-btn" class="pixel-btn pixel-font text-xs py-2.5">
+            КЕРУВАННЯ
+          </button>
+          
+          <button id="pause-audio-toggle" class="pixel-btn pixel-font text-xs py-2.5">
+            ЗВУК: УВІМК
+          </button>
+
+          <a href="https://github.com/whyuaxvier" target="_blank" class="pixel-btn pixel-font text-xs py-2.5 text-center block text-cyan-300">
+            GITHUB PROFILE
+          </a>
+        </div>
+      </div>
+
+      <!-- Controls Sub-Modal -->
+      <div id="controls-modal" class="hidden absolute inset-0 bg-slate-950/95 z-40 flex flex-col items-center justify-center p-6 text-center">
+        <div class="pixel-box p-6 max-w-md bg-slate-900 border-4 border-yellow-500 text-left space-y-4">
+          <h3 class="pixel-font text-xs text-yellow-400 border-b border-slate-800 pb-2">КЕРУВАННЯ</h3>
+          <p class="retro-font text-xl text-slate-200">
+            <strong class="text-cyan-400">W A S D</strong> — рух персонажа
+          </p>
+          <p class="retro-font text-xl text-slate-200">
+            <strong class="text-yellow-400">E</strong> — взяти або покласти предмет, говорити з професором
+          </p>
+          <div class="pt-2 text-right">
+            <button id="controls-close-btn" class="pixel-btn pixel-font text-[10px] px-4 py-2">
+              [ НАЗАД ]
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dialogue / Feedback Overlay Box -->
+      <div id="feedback-box" class="hidden absolute bottom-4 left-4 right-4 pixel-box p-3 z-20">
+        <div class="flex items-start gap-3">
+          <div class="pixel-font text-xs text-yellow-400">[i]</div>
+          <div class="flex-1">
+            <h4 id="feedback-title" class="pixel-font text-xs text-yellow-400 mb-1">Підказка техніка</h4>
+            <p id="feedback-text" class="retro-font text-lg text-slate-200 leading-tight"></p>
+          </div>
+          <button id="feedback-close" class="pixel-btn text-[10px] px-2 py-1">
+            ОК
+          </button>
+        </div>
+      </div>
+
+      <!-- Victory Overlay -->
+      <div id="victory-screen" class="hidden absolute inset-0 bg-slate-950/95 z-30 flex flex-col items-center justify-center p-6 text-center">
+        <div class="pixel-box p-6 max-w-lg bg-slate-900 border-4 border-emerald-500">
+          <h2 class="pixel-font text-lg md:text-xl text-emerald-400 mb-3 animate-pulse">СЕРВЕР ВІДНОВЛЕНО!</h2>
+          <p class="retro-font text-xl text-slate-300 mb-4">
+            Вітаємо! Ви успішно усунули всі несправності серверної стійки.
+          </p>
+          
+          <div class="bg-slate-950 p-4 border border-slate-800 mb-4 text-left space-y-2">
+            <div class="flex justify-between retro-font text-lg">
+              <span class="text-gray-400">Виконано завдань:</span>
+              <span class="text-cyan-400 font-bold">5 / 5</span>
+            </div>
+            <div class="flex justify-between retro-font text-lg">
+              <span class="text-gray-400">Помилкових спроб:</span>
+              <span id="stat-errors" class="text-amber-400 font-bold">0</span>
+            </div>
+            <hr class="border-slate-800 my-1">
+            <div class="retro-font text-base text-emerald-300">
+              ✓ Засвоєно: OЗП (RAM), SSD накопичувачі, GPU прискорювачі, Монітори діагностики та Ethernet кабелі!
+            </div>
+          </div>
+
+          <button id="restart-btn" class="pixel-btn pixel-font text-xs px-6 py-3 uppercase cursor-pointer">
+            ПОЧАТИ СПОЧАТКУ
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls" class="w-full flex justify-between items-center mt-3 md:hidden px-4">
+      <div class="grid grid-cols-3 gap-1 w-36 h-36">
+        <div></div>
+        <button id="btn-up" class="dpad-btn font-bold">▲</button>
+        <div></div>
+        <button id="btn-left" class="dpad-btn font-bold">◄</button>
+        <div class="flex items-center justify-center text-[10px] text-slate-500 pixel-font">PAD</div>
+        <button id="btn-right" class="dpad-btn font-bold">►</button>
+        <div></div>
+        <button id="btn-down" class="dpad-btn font-bold">▼</button>
+        <div></div>
+      </div>
+
+      <button id="btn-action" class="w-24 h-24 bg-cyan-600 border-4 border-cyan-400 text-white pixel-font text-[10px] active:bg-cyan-700 shadow-lg flex flex-col items-center justify-center gap-1">
+        <span>ВЗАЄМОДІЯ</span>
+        <span class="text-[9px] opacity-75">( E )</span>
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    // --- AUDIO SYSTEM ---
+    class SoundFX {
+      constructor() { this.ctx = null; this.enabled = true; }
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+      }
+      playPickup() {
+        if (!this.enabled || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(250, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(500, this.ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.08);
+      }
+      playDrop() {
+        if (!this.enabled || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(350, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.1);
+      }
+      playSuccess() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.08, now + idx * 0.07);
+          gain.gain.linearRampToValueAtTime(0.01, now + idx * 0.07 + 0.12);
+          osc.connect(gain); gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.07); osc.stop(now + idx * 0.07 + 0.12);
+        });
+      }
+      playError() {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        [220, 180].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.12, now + idx * 0.1);
+          gain.gain.linearRampToValueAtTime(0.01, now + idx * 0.1 + 0.1);
+          osc.connect(gain); gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.1); osc.stop(now + idx * 0.1 + 0.1);
+        });
+      }
+      playStep() {
+        if (!this.enabled || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(90 + Math.random() * 30, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.02, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.03);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.03);
+      }
+    }
+    const sound = new SoundFX();
+
+    // --- GAME TASKS ---
+    const TASKS_DATA = [
+      {
+        id: 1,
+        desc: "Немає оперативної пам'яті. Знайдіть компонент для тимчасового зберігання даних програм.",
+        correctItem: "ram",
+        explanation: "Чудово! RAM (ОЗП) тимчасово зберігає дані, які зараз використовує процесор."
+      },
+      {
+        id: 2,
+        desc: "Немає накопичувача для ОС і файлів. Знайдіть його.",
+        correctItem: "ssd",
+        explanation: "Правильно! SSD швидко й постійно зберігає ОС, програми та файли."
+      },
+      {
+        id: 3,
+        desc: "Серверу потрібні паралельні графічні обчислення. Знайдіть прискорювач.",
+        correctItem: "gpu",
+        explanation: "Відмінно! GPU прискорює графіку та паралельні обчислення."
+      },
+      {
+        id: 4,
+        desc: "Техніку нічого не видно: немає пристрою відображення. Знайдіть його.",
+        correctItem: "monitor",
+        explanation: "Точно! Монітор виводить зображення для техніка."
+      },
+      {
+        id: 5,
+        desc: "Сервер без мережі. Знайдіть кабель для дротового з'єднання.",
+        correctItem: "ethernet",
+        explanation: "Вітаємо! Ethernet дає надійне дротове з'єднання з мережею."
+      }
+    ];
+
+    // Level 0 - preparation stage (collect every scattered object before Level 1)
+    const LEVEL0_DATA = {
+      desc: "Вітаю! Розкладіть усі предмети по столах: беріть з підлоги (E) і кладіть на стіл (E). Ті, що вже на столах, зараховано."
+    };
+
+    const DISTRACTOR_FEEDBACK = {
+      coffee: "Кава зіпсує електроніку!",
+      fire_extinguisher: "Пожежі немає, вогнегасник не допоможе.",
+      book: "Інструкція корисна, але потрібна деталь.",
+      keyboard: "Клавіатура не замінить внутрішній компонент.",
+      mouse: "Миша зараз не потрібна.",
+      usb: "Флешка не вирішить цю несправність."
+    };
+
+    const ITEM_NAMES = {
+      ram: "Модуль ОЗП (RAM)",
+      ssd: "SSD накопичувач",
+      gpu: "Відеокарта (GPU)",
+      monitor: "Монітор",
+      ethernet: "Кабель Ethernet",
+      coffee: "Кавуся",
+      fire_extinguisher: "Вогнегасник",
+      book: "Сервери (книга для чайників)",
+      keyboard: "Клавіатура",
+      mouse: "Миша",
+      usb: "Флешка"
+    };
+
+    // --- SPRITE SHEET GENERATOR ---
+    class SpriteSheet {
+      constructor() { this.cache = {}; }
+      get(key, drawFn, width = 32, height = 32) {
+        if (this.cache[key]) return this.cache[key];
+        const cvs = document.createElement('canvas');
+        cvs.width = width; cvs.height = height;
+        const ctx = cvs.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+        drawFn(ctx, width, height);
+        this.cache[key] = cvs;
+        return cvs;
+      }
+    }
+    const sprites = new SpriteSheet();
+
+    function drawPixelRect(ctx, color, x, y, w, h) {
+      ctx.fillStyle = color;
+      ctx.fillRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
+    }
+
+    function generateFloorTile(ctx, w, h) {
+      ctx.fillStyle = '#161b22'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, w, 1); ctx.fillRect(0, 0, 1, h);
+      ctx.fillStyle = '#21262d'; ctx.fillRect(6, 6, 2, 2); ctx.fillRect(20, 18, 2, 2);
+    }
+
+    function generateWallTile(ctx, w, h) {
+      ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#161b22'; ctx.fillRect(2, 2, w - 4, h - 4);
+      ctx.fillStyle = '#30363d'; ctx.fillRect(2, 2, w - 4, 2);
+    }
+
+    function generateServerRack(ctx, w, h, isInstalledCount = 0) {
+      drawPixelRect(ctx, '#090d16', 0, 0, w, h);
+      drawPixelRect(ctx, '#161b22', 2, 2, w - 4, h - 4);
+      for (let i = 0; i < 4; i++) {
+        const y = 6 + i * 18;
+        drawPixelRect(ctx, '#0d1117', 6, y, w - 12, 14);
+        drawPixelRect(ctx, '#30363d', 8, y + 2, w - 16, 2);
+        drawPixelRect(ctx, '#000000', 10, y + 6, 16, 4);
+        const isOnline = i < isInstalledCount;
+        drawPixelRect(ctx, isOnline ? '#10b981' : '#ef4444', w - 18, y + 6, 3, 3);
+        drawPixelRect(ctx, isOnline ? '#3b82f6' : '#64748b', w - 12, y + 6, 3, 3);
+      }
+    }
+
+    function generateWorkbench(ctx, w, h) {
+      drawPixelRect(ctx, '#484f58', 0, 0, w, h);
+      drawPixelRect(ctx, '#6e7681', 2, 2, w - 4, 4);
+      drawPixelRect(ctx, '#161b22', 0, h - 4, w, 4);
+    }
+
+    function generatePlayerSprite(ctx, w, h, frame = 0, dir = 'down') {
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillRect(8, 26, 16, 4);
+
+      const bounce = (frame % 2 === 1) ? -1 : 0;
+      const py = 2 + bounce;
+
+      drawPixelRect(ctx, '#1f2937', 10, py + 22, 5, 4);
+      drawPixelRect(ctx, '#1f2937', 17, py + 22, 5, 4);
+      drawPixelRect(ctx, '#1d4ed8', 11, py + 16, 4, 6);
+      drawPixelRect(ctx, '#1d4ed8', 17, py + 16, 4, 6);
+      drawPixelRect(ctx, '#0284c7', 9, py + 9, 14, 8);
+      drawPixelRect(ctx, '#38bdf8', 11, py + 10, 10, 2);
+      drawPixelRect(ctx, '#fca5a5', 10, py + 2, 12, 8);
+      drawPixelRect(ctx, '#78350f', 9, py, 14, 3);
+      drawPixelRect(ctx, '#0284c7', 7, py + 9, 2, 5);
+      drawPixelRect(ctx, '#0284c7', 23, py + 9, 2, 5);
+      drawPixelRect(ctx, '#fca5a5', 7, py + 14, 2, 3);
+      drawPixelRect(ctx, '#fca5a5', 23, py + 14, 2, 3);
+
+      ctx.fillStyle = '#1e1b4b';
+      if (dir === 'down') {
+        ctx.fillRect(12, py + 5, 2, 2);
+        ctx.fillRect(18, py + 5, 2, 2);
+        drawPixelRect(ctx, '#b91c1c', 14, py + 8, 4, 1);
+      } else if (dir === 'up') {
+        drawPixelRect(ctx, '#78350f', 9, py + 2, 14, 6);
+      } else if (dir === 'left') {
+        ctx.fillRect(11, py + 5, 2, 2);
+      } else if (dir === 'right') {
+        ctx.fillRect(19, py + 5, 2, 2);
+      }
+    }
+
+    function generateProfessorSprite(ctx, w, h) {
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillRect(8, 26, 16, 4);
+      const py = 2;
+
+      drawPixelRect(ctx, '#111827', 10, py + 22, 5, 4);
+      drawPixelRect(ctx, '#111827', 17, py + 22, 5, 4);
+      drawPixelRect(ctx, '#374151', 11, py + 16, 4, 6);
+      drawPixelRect(ctx, '#374151', 17, py + 16, 4, 6);
+      // lab coat
+      drawPixelRect(ctx, '#e5e7eb', 8, py + 9, 16, 9);
+      drawPixelRect(ctx, '#cbd5e1', 15, py + 10, 2, 8);
+      drawPixelRect(ctx, '#94a3b8', 10, py + 13, 3, 2);
+      drawPixelRect(ctx, '#e5e7eb', 6, py + 9, 2, 6);
+      drawPixelRect(ctx, '#e5e7eb', 24, py + 9, 2, 6);
+      drawPixelRect(ctx, '#fcd5b5', 6, py + 15, 2, 3);
+      drawPixelRect(ctx, '#fcd5b5', 24, py + 15, 2, 3);
+      // head
+      drawPixelRect(ctx, '#fcd5b5', 10, py + 2, 12, 8);
+      // grey hair
+      drawPixelRect(ctx, '#9ca3af', 9, py, 14, 3);
+      drawPixelRect(ctx, '#9ca3af', 9, py + 2, 2, 4);
+      drawPixelRect(ctx, '#9ca3af', 21, py + 2, 2, 4);
+      // glasses
+      drawPixelRect(ctx, '#1e1b4b', 11, py + 4, 4, 3);
+      drawPixelRect(ctx, '#1e1b4b', 17, py + 4, 4, 3);
+      drawPixelRect(ctx, '#1e1b4b', 15, py + 5, 2, 1);
+      drawPixelRect(ctx, '#bae6fd', 12, py + 5, 2, 1);
+      drawPixelRect(ctx, '#bae6fd', 18, py + 5, 2, 1);
+      // big moustache
+      drawPixelRect(ctx, '#f3f4f6', 11, py + 7, 10, 2);
+      drawPixelRect(ctx, '#f3f4f6', 10, py + 8, 2, 2);
+      drawPixelRect(ctx, '#f3f4f6', 20, py + 8, 2, 2);
+      drawPixelRect(ctx, '#9ca3af', 12, py + 9, 8, 1);
+    }
+
+    function drawItemSprite(ctx, type, size = 24) {
+      ctx.clearRect(0, 0, size, size);
+      switch (type) {
+        case 'ram':
+          drawPixelRect(ctx, '#15803d', 2, 6, 20, 12);
+          drawPixelRect(ctx, '#eab308', 2, 18, 20, 2);
+          for (let i = 0; i < 4; i++) drawPixelRect(ctx, '#0d1117', 4 + i * 4.5, 8, 3, 7);
+          break;
+        case 'ssd':
+          drawPixelRect(ctx, '#30363d', 4, 4, 16, 16);
+          drawPixelRect(ctx, '#1f6feb', 6, 6, 12, 6);
+          drawPixelRect(ctx, '#8b949e', 6, 14, 8, 4);
+          break;
+        case 'gpu':
+          drawPixelRect(ctx, '#161b22', 2, 4, 20, 16);
+          drawPixelRect(ctx, '#30363d', 4, 6, 16, 12);
+          ctx.fillStyle = '#0d1117';
+          ctx.beginPath(); ctx.arc(8, 12, 3.5, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(16, 12, 3.5, 0, Math.PI*2); ctx.fill();
+          drawPixelRect(ctx, '#8b949e', 2, 2, 3, 20);
+          break;
+        case 'monitor':
+          drawPixelRect(ctx, '#0d1117', 2, 2, 20, 15);
+          drawPixelRect(ctx, '#38bdf8', 4, 4, 16, 11);
+          drawPixelRect(ctx, '#30363d', 10, 17, 4, 4);
+          drawPixelRect(ctx, '#21262d', 6, 21, 12, 2);
+          break;
+        case 'ethernet':
+          ctx.strokeStyle = '#1f6feb'; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(12, 12, 7, 0, Math.PI * 1.8); ctx.stroke();
+          drawPixelRect(ctx, '#f0f6fc', 16, 6, 5, 5);
+          drawPixelRect(ctx, '#eab308', 19, 7, 2, 3);
+          break;
+        case 'coffee':
+          drawPixelRect(ctx, '#f0f6fc', 6, 8, 10, 12);
+          drawPixelRect(ctx, '#c9d1d9', 16, 10, 4, 8);
+          drawPixelRect(ctx, '#78350f', 8, 6, 6, 3);
+          break;
+        case 'fire_extinguisher':
+          drawPixelRect(ctx, '#da3633', 7, 6, 10, 15);
+          drawPixelRect(ctx, '#8e1519', 7, 6, 3, 15);
+          drawPixelRect(ctx, '#0d1117', 10, 2, 4, 4);
+          drawPixelRect(ctx, '#0d1117', 14, 4, 5, 2);
+          break;
+        case 'book':
+          drawPixelRect(ctx, '#0969da', 4, 4, 16, 17);
+          drawPixelRect(ctx, '#f0f6fc', 6, 5, 12, 2);
+          drawPixelRect(ctx, '#eab308', 8, 10, 8, 4);
+          break;
+        case 'keyboard':
+          drawPixelRect(ctx, '#21262d', 2, 8, 20, 10);
+          drawPixelRect(ctx, '#f0f6fc', 4, 10, 16, 6);
+          break;
+        case 'mouse':
+          drawPixelRect(ctx, '#f2f2f2', 8, 6, 8, 12);
+          drawPixelRect(ctx, '#0d1117', 11, 6, 2, 4);
+          break;
+        case 'usb':
+          drawPixelRect(ctx, '#1f6feb', 8, 10, 8, 10);
+          drawPixelRect(ctx, '#8b949e', 10, 4, 4, 6);
+          break;
+      }
+    }
+
+    // --- CANVAS ENGINE SETUP ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    const V_WIDTH = 480;
+    const V_HEIGHT = 320;
+    const TILE_SIZE = 32;
+
+    canvas.width = V_WIDTH;
+    canvas.height = V_HEIGHT;
+
+    const MAP = [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,2,2,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,2,2,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,2,2,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,2,2,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ];
+
+    const TABLES = [
+      { id: 1, x: 250, y: 48,  w: 160, h: 48 },
+      { id: 2, x: 250, y: 140, w: 160, h: 48 },
+      { id: 3, x: 250, y: 230, w: 160, h: 48 }
+    ];
+
+    function generateTableSlots() {
+      const slots = [];
+      TABLES.forEach(table => {
+        for (let i = 0; i < 4; i++) {
+          slots.push({
+            tableId: table.id,
+            x: table.x + 12 + i * 36,
+            y: table.y + 12,
+            item: null
+          });
+        }
+      });
+      return slots;
+    }
+
+    const FLOOR_SPOTS = [
+      { x: 130, y: 180 }, { x: 170, y: 220 }, { x: 200, y: 100 },
+      { x: 180, y: 260 }, { x: 210, y: 190 }, { x: 150, y: 60 }
+    ];
+
+    let tableSlots = [];
+
+    // Professor NPC (gives the tasks through dialogue)
+    const NPC = { x: 44, y: 216, w: 24, h: 24 };
+
+    function shuffleArray(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    // --- GAME STATE ---
+    let gameState = {
+      gameStarted: false,
+      isPaused: false,
+      currentTaskIdx: 0,
+      incorrectAttempts: 0,
+      completed: false,
+      level0Complete: false,
+      dialogueOpen: false,
+      player: {
+        x: 140,
+        y: 150,
+        w: 24,
+        h: 24,
+        speed: 2.2,
+        dir: 'down',
+        frame: 0,
+        animTimer: 0,
+        isMoving: false,
+        carriedItem: null
+      },
+      items: [],
+      particles: []
+    };
+
+    function initItems() {
+      const itemTypes = [
+        'ram', 'ssd', 'gpu', 'monitor', 'ethernet',
+        'coffee', 'fire_extinguisher', 'book', 'keyboard', 'mouse', 'usb'
+      ];
+
+      tableSlots = generateTableSlots();
+      const allPossibleLocations = [];
+
+      tableSlots.forEach(s => allPossibleLocations.push({ type: 'table', slot: s }));
+      FLOOR_SPOTS.forEach(f => allPossibleLocations.push({ type: 'floor', x: f.x, y: f.y }));
+
+      const shuffledLocations = shuffleArray(allPossibleLocations);
+      gameState.items = [];
+
+      itemTypes.forEach((type, index) => {
+        const loc = shuffledLocations[index];
+        if (loc.type === 'table') {
+          const newItem = {
+            id: type,
+            type: type,
+            x: loc.slot.x,
+            y: loc.slot.y,
+            installed: false,
+            currentSlot: loc.slot
+          };
+          loc.slot.item = newItem;
+          gameState.items.push(newItem);
+        } else {
+          const newItem = {
+            id: type,
+            type: type,
+            x: loc.x,
+            y: loc.y,
+            installed: false,
+            currentSlot: null
+          };
+          gameState.items.push(newItem);
+        }
+      });
+    }
+
+    // --- CONTROLS INPUT ---
+    const keys = {};
+
+    window.addEventListener('keydown', (e) => {
+      sound.init();
+      keys[e.key.toLowerCase()] = true;
+      keys[e.code] = true;
+
+      if (e.code === 'Escape') {
+        if (gameState.gameStarted && !gameState.completed) {
+          togglePause();
+        }
+      }
+
+      if (e.code === 'KeyE' || e.code === 'Space' || e.key === 'e' || e.key === 'Е' || e.key === 'е') {
+        if (gameState.gameStarted && !gameState.isPaused && !e.repeat) {
+          handleInteraction();
+        }
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      keys[e.key.toLowerCase()] = false;
+      keys[e.code] = false;
+    });
+
+    const setupTouchBtn = (id, keyCode) => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      const start = (e) => { e.preventDefault(); sound.init(); keys[keyCode] = true; };
+      const end = (e) => { e.preventDefault(); keys[keyCode] = false; };
+      btn.addEventListener('touchstart', start);
+      btn.addEventListener('touchend', end);
+      btn.addEventListener('mousedown', start);
+      btn.addEventListener('mouseup', end);
+    };
+
+    setupTouchBtn('btn-up', 'KeyW');
+    setupTouchBtn('btn-down', 'KeyS');
+    setupTouchBtn('btn-left', 'KeyA');
+    setupTouchBtn('btn-right', 'KeyD');
+
+    const actionBtn = document.getElementById('btn-action');
+    if (actionBtn) {
+      const triggerAction = (e) => {
+        e.preventDefault(); sound.init();
+        if (gameState.gameStarted && !gameState.isPaused) {
+          handleInteraction();
+        }
+      };
+      actionBtn.addEventListener('touchstart', triggerAction);
+      actionBtn.addEventListener('click', triggerAction);
+    }
+
+    // --- COLLISION PHYSICS ---
+    function checkMapCollision(x, y) {
+      const col = Math.floor(x / TILE_SIZE);
+      const row = Math.floor(y / TILE_SIZE);
+      if (col < 0 || col >= 15 || row < 0 || row >= 10) return true;
+      const tile = MAP[row][col];
+      return tile === 1 || tile === 2;
+    }
+
+    function checkTableCollision(nx, ny) {
+      const p = gameState.player;
+      const margin = 4;
+      for (const t of TABLES) {
+        if (nx + margin < t.x + t.w &&
+            nx + p.w - margin > t.x &&
+            ny + margin < t.y + t.h &&
+            ny + p.h - margin > t.y) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function checkNpcCollision(nx, ny) {
+      const p = gameState.player;
+      const margin = 4;
+      return nx + margin < NPC.x + NPC.w &&
+             nx + p.w - margin > NPC.x &&
+             ny + margin < NPC.y + NPC.h &&
+             ny + p.h - margin > NPC.y;
+    }
+
+    function isNearProfessor(pX, pY) {
+      return Math.hypot(pX - (NPC.x + NPC.w / 2), pY - (NPC.y + NPC.h / 2)) < 48;
+    }
+
+    function isPositionBlocked(nx, ny) {
+      const p = gameState.player;
+      const margin = 4;
+      const mapBlocked = checkMapCollision(nx + margin, ny + margin) ||
+                         checkMapCollision(nx + p.w - margin, ny + margin) ||
+                         checkMapCollision(nx + margin, ny + p.h - margin) ||
+                         checkMapCollision(nx + p.w - margin, ny + p.h - margin);
+      return mapBlocked || checkTableCollision(nx, ny) || checkNpcCollision(nx, ny);
+    }
+
+    function getNearbyTable(pX, pY) {
+      let closestTable = null;
+      let minDist = 48;
+
+      TABLES.forEach(table => {
+        const closestX = Math.max(table.x, Math.min(pX, table.x + table.w));
+        const closestY = Math.max(table.y, Math.min(pY, table.y + table.h));
+        const dist = Math.hypot(pX - closestX, pY - closestY);
+
+        if (dist < minDist) {
+          minDist = dist;
+          closestTable = table;
+        }
+      });
+      return closestTable;
+    }
+
+    function handleInteraction() {
+      if (gameState.dialogueOpen) {
+        closeDialogue();
+        return;
+      }
+      handleInteractionCore();
+      checkLevel0Progress();
+    }
+
+    function handleInteractionCore() {
+      if (gameState.completed || gameState.isPaused) return;
+
+      const p = gameState.player;
+      const pCenterX = p.x + p.w / 2;
+      const pCenterY = p.y + p.h / 2;
+
+      // 1. Repair Zone check
+      const repairDist = Math.hypot(pCenterX - 120, pCenterY - 112);
+      if (p.carriedItem && repairDist < 55 && gameState.level0Complete) {
+        attemptInstallation(p.carriedItem);
+        return;
+      }
+
+      // 2. Table Interaction
+      const nearbyTable = getNearbyTable(pCenterX, pCenterY);
+
+      if (nearbyTable) {
+        if (p.carriedItem) {
+          const freeSlot = tableSlots.find(s => s.tableId === nearbyTable.id && s.item === null);
+
+          if (freeSlot) {
+            const item = p.carriedItem;
+            item.x = freeSlot.x;
+            item.y = freeSlot.y;
+            item.currentSlot = freeSlot;
+            freeSlot.item = item;
+
+            p.carriedItem = null;
+            sound.playDrop();
+            return;
+          } else {
+            showFeedback("Немає місця!", "На цьому столі немає місця!");
+            return;
+          }
+        } else {
+          let closestItem = null;
+          let minDist = 45;
+
+          gameState.items.forEach(item => {
+            if (item.installed || item.currentSlot?.tableId !== nearbyTable.id) return;
+            const dist = Math.hypot(pCenterX - (item.x + 12), pCenterY - (item.y + 12));
+            if (dist < minDist) {
+              minDist = dist;
+              closestItem = item;
+            }
+          });
+
+          if (closestItem) {
+            if (closestItem.currentSlot) {
+              closestItem.currentSlot.item = null;
+              closestItem.currentSlot = null;
+            }
+            p.carriedItem = closestItem;
+            sound.playPickup();
+            return;
+          }
+        }
+      }
+
+      // 3. Floor Placement / Pickup anywhere else
+      if (p.carriedItem) {
+        const item = p.carriedItem;
+        item.x = Math.floor(p.x);
+        item.y = Math.floor(p.y + 4);
+        item.currentSlot = null;
+
+        p.carriedItem = null;
+        sound.playDrop();
+        return;
+      } else {
+        let closestItem = null;
+        let minDist = 40;
+
+        gameState.items.forEach(item => {
+          if (item.installed) return;
+          const dist = Math.hypot(pCenterX - (item.x + 12), pCenterY - (item.y + 12));
+          if (dist < minDist) {
+            minDist = dist;
+            closestItem = item;
+          }
+        });
+
+        if (closestItem) {
+          if (closestItem.currentSlot) {
+            closestItem.currentSlot.item = null;
+            closestItem.currentSlot = null;
+          }
+          p.carriedItem = closestItem;
+          sound.playPickup();
+        } else if (isNearProfessor(pCenterX, pCenterY)) {
+          talkToProfessor();
+        }
+      }
+    }
+
+    // Level 0: the game checks which items already lie on the tables
+    function countItemsOnTables() {
+      return gameState.items.filter(item => !item.installed && item.currentSlot !== null).length;
+    }
+
+    function checkLevel0Progress() {
+      if (gameState.level0Complete) return;
+      if (countItemsOnTables() >= gameState.items.length) {
+        completeLevel0();
+      } else {
+        updateTaskUI();
+      }
+    }
+
+    function completeLevel0() {
+      gameState.level0Complete = true;
+      sound.playSuccess();
+      spawnParticles(gameState.player.x + 12, gameState.player.y + 12, '#38bdf8');
+      showDialogue("Підготовку завершено! " + TASKS_DATA[0].desc, getLevelLabel());
+      updateTaskUI();
+    }
+
+    function attemptInstallation(item) {
+      const currentTask = TASKS_DATA[gameState.currentTaskIdx];
+
+      if (item.type === currentTask.correctItem) {
+        sound.playSuccess();
+        item.installed = true;
+        if (item.currentSlot) item.currentSlot.item = null;
+        gameState.player.carriedItem = null;
+
+        spawnParticles(120, 120, '#10b981');
+
+        gameState.currentTaskIdx++;
+        if (gameState.currentTaskIdx >= TASKS_DATA.length) {
+          showDialogue(currentTask.explanation, `РІВЕНЬ ${currentTask.id}/${TASKS_DATA.length}`);
+          setTimeout(showVictory, 1500);
+        } else {
+          updateTaskUI();
+          showDialogue(currentTask.explanation + " " + TASKS_DATA[gameState.currentTaskIdx].desc, getLevelLabel());
+        }
+      } else {
+        sound.playError();
+        gameState.incorrectAttempts++;
+        spawnParticles(120, 120, '#ef4444');
+        let msg = DISTRACTOR_FEEDBACK[item.type] || "Ця деталь не підходить.";
+        showFeedback("Не той компонент!", msg);
+      }
+    }
+
+    function spawnParticles(x, y, color) {
+      for (let i = 0; i < 15; i++) {
+        gameState.particles.push({
+          x: x, y: y,
+          vx: (Math.random() - 0.5) * 4,
+          vy: (Math.random() - 0.5) * 4,
+          life: 30, color: color
+        });
+      }
+    }
+
+    function showFeedback(title, text) {
+      const box = document.getElementById('feedback-box');
+      document.getElementById('feedback-title').innerText = title;
+      document.getElementById('feedback-text').innerText = text;
+      box.classList.remove('hidden');
+    }
+
+    function closeFeedback() {
+      document.getElementById('feedback-box').classList.add('hidden');
+    }
+
+    document.getElementById('feedback-close').addEventListener('click', closeFeedback);
+
+    // --- PROFESSOR DIALOGUE ---
+    function getLevelLabel() {
+      if (!gameState.level0Complete) return 'РІВЕНЬ 0';
+      const idx = Math.min(gameState.currentTaskIdx, TASKS_DATA.length - 1);
+      return `РІВЕНЬ ${TASKS_DATA[idx].id}/${TASKS_DATA.length}`;
+    }
+
+    function getCurrentTaskText() {
+      if (!gameState.level0Complete) return LEVEL0_DATA.desc;
+      return TASKS_DATA[Math.min(gameState.currentTaskIdx, TASKS_DATA.length - 1)].desc;
+    }
+
+    function showDialogue(text, levelLabel) {
+      gameState.dialogueOpen = true;
+      document.getElementById('feedback-box').classList.add('hidden');
+      document.getElementById('npc-dialog-level').innerText = levelLabel;
+      document.getElementById('npc-dialog-text').innerText = text;
+      document.getElementById('npc-dialog').classList.remove('hidden');
+    }
+
+    function closeDialogue() {
+      gameState.dialogueOpen = false;
+      document.getElementById('npc-dialog').classList.add('hidden');
+    }
+
+    function talkToProfessor() {
+      showDialogue(getCurrentTaskText(), getLevelLabel());
+    }
+
+    document.getElementById('npc-dialog-close').addEventListener('click', closeDialogue);
+
+    // Enter closes the professor dialogue or the feedback box (same as OK)
+    window.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      if (gameState.dialogueOpen) {
+        e.preventDefault();
+        closeDialogue();
+        return;
+      }
+      const box = document.getElementById('feedback-box');
+      if (box.classList.contains('hidden')) return;
+      e.preventDefault();
+      closeFeedback();
+    });
+
+    // --- GAME LOOP & UPDATES ---
+    function update() {
+      if (gameState.completed || !gameState.gameStarted || gameState.isPaused) return;
+
+      const p = gameState.player;
+      let dx = 0;
+      let dy = 0;
+
+      if (keys['w'] || keys['KeyW'] || keys['arrowup'] || keys['ц']) dy -= 1;
+      if (keys['s'] || keys['KeyS'] || keys['arrowdown'] || keys['і'] || keys['ы']) dy += 1;
+      if (keys['a'] || keys['KeyA'] || keys['arrowleft'] || keys['ф']) dx -= 1;
+      if (keys['d'] || keys['KeyD'] || keys['arrowright'] || keys['в']) dx += 1;
+
+      if (dx !== 0 && dy !== 0) {
+        dx *= 0.7071;
+        dy *= 0.7071;
+      }
+
+      p.isMoving = (dx !== 0 || dy !== 0);
+
+      if (p.isMoving) {
+        if (Math.abs(dx) > Math.abs(dy)) {
+          p.dir = dx > 0 ? 'right' : 'left';
+        } else {
+          p.dir = dy > 0 ? 'down' : 'up';
+        }
+
+        const nextX = p.x + dx * p.speed;
+        const nextY = p.y + dy * p.speed;
+
+        if (!isPositionBlocked(nextX, p.y)) p.x = nextX;
+        if (!isPositionBlocked(p.x, nextY)) p.y = nextY;
+
+        p.animTimer++;
+        if (p.animTimer % 10 === 0) {
+          p.frame = (p.frame + 1) % 4;
+          if (p.frame % 2 === 0) sound.playStep();
+        }
+      } else {
+        p.frame = 0;
+      }
+
+      gameState.particles.forEach((pt) => {
+        pt.x += pt.vx; pt.y += pt.vy; pt.life--;
+      });
+      gameState.particles = gameState.particles.filter(pt => pt.life > 0);
+    }
+
+    // --- RENDER PIPELINE ---
+    function render() {
+      ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
+
+      const floorImg = sprites.get('floor', generateFloorTile);
+      const wallImg = sprites.get('wall', generateWallTile);
+
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 15; c++) {
+          const tile = MAP[r][c];
+          const x = c * TILE_SIZE;
+          const y = r * TILE_SIZE;
+          if (tile === 1) ctx.drawImage(wallImg, x, y);
+          else ctx.drawImage(floorImg, x, y);
+        }
+      }
+
+      // Server Rack & Repair Zone Marker
+      const serverRackImg = sprites.get(
+        'server_rack_' + gameState.currentTaskIdx,
+        (c, w, h) => generateServerRack(c, w, h, gameState.currentTaskIdx),
+        64, 128
+      );
+      ctx.drawImage(serverRackImg, 32, 32);
+
+      const time = Date.now() * 0.003;
+      ctx.strokeStyle = `rgba(56, 189, 248, ${0.4 + Math.sin(time) * 0.3})`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(96, 64, 48, 96);
+      ctx.fillStyle = `rgba(56, 189, 248, 0.1)`;
+      ctx.fillRect(96, 64, 48, 96);
+
+      // Render Tables
+      const benchImg = sprites.get('workbench', generateWorkbench, 160, 48);
+      TABLES.forEach(table => {
+        ctx.drawImage(benchImg, table.x, table.y);
+      });
+
+      // Render Items on Table Surfaces & Floor
+      gameState.items.forEach(item => {
+        if (item.installed || item === gameState.player.carriedItem) return;
+        const itemCanvas = sprites.get('item_' + item.type, (c) => drawItemSprite(c, item.type), 24, 24);
+        ctx.drawImage(itemCanvas, item.x, item.y);
+      });
+
+      // Render Professor NPC
+      const professorImg = sprites.get('professor', generateProfessorSprite, 32, 32);
+      ctx.drawImage(professorImg, NPC.x - 4, NPC.y - 8);
+      if (gameState.gameStarted && !gameState.dialogueOpen && !gameState.player.carriedItem &&
+          isNearProfessor(gameState.player.x + 12, gameState.player.y + 12)) {
+        const hint = 'E: ГОВОРИТИ';
+        ctx.font = '8px "Press Start 2P", cursive';
+        const hw = ctx.measureText(hint).width;
+        const hx = NPC.x + NPC.w / 2 - hw / 2;
+        const hy = NPC.y - 16;
+        ctx.fillStyle = '#161b22';
+        ctx.fillRect(hx - 4, hy - 9, hw + 8, 13);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(hx - 4, hy - 9, hw + 8, 13);
+        ctx.fillStyle = '#e0f2fe';
+        ctx.fillText(hint, hx, hy);
+      }
+
+      // Render Player
+      const p = gameState.player;
+      const playerCanvas = sprites.get(
+        `player_${p.dir}_${p.frame}`,
+        (c) => generatePlayerSprite(c, 32, 32, p.frame, p.dir),
+        32, 32
+      );
+      ctx.drawImage(playerCanvas, p.x - 4, p.y - 8);
+
+      // Render Carried Item AND Floating Item Name above player
+      if (p.carriedItem) {
+        const itemCanvas = sprites.get('item_' + p.carriedItem.type, (c) => drawItemSprite(c, p.carriedItem.type), 24, 24);
+        const bob = Math.sin(Date.now() * 0.008) * 2;
+        const itemY = p.y - 20 + bob;
+        ctx.drawImage(itemCanvas, p.x, itemY);
+
+        const itemName = ITEM_NAMES[p.carriedItem.type];
+        ctx.font = '10px "Press Start 2P", cursive';
+        const txtWidth = ctx.measureText(itemName).width;
+        const lx = p.x + p.w / 2 - txtWidth / 2;
+        const ly = itemY - 6;
+
+        ctx.fillStyle = '#161b22';
+        ctx.fillRect(lx - 4, ly - 10, txtWidth + 8, 14);
+        ctx.strokeStyle = '#eab308';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(lx - 4, ly - 10, txtWidth + 8, 14);
+
+        ctx.fillStyle = '#fde047';
+        ctx.fillText(itemName, lx, ly);
+      }
+
+      // Render Particles
+      gameState.particles.forEach(pt => {
+        ctx.fillStyle = pt.color;
+        ctx.fillRect(pt.x, pt.y, 3, 3);
+      });
+    }
+
+    // --- UI UPDATES & PAUSE LOGIC ---
+    function updateTaskUI() {
+      const statusText = document.getElementById('status-text');
+      if (!gameState.level0Complete) {
+        const total = gameState.items.length;
+        statusText.innerText = `РІВЕНЬ 0: НА СТОЛАХ ${countItemsOnTables()}/${total}`;
+        return;
+      }
+      if (gameState.currentTaskIdx >= TASKS_DATA.length) return;
+      statusText.innerText = getLevelLabel();
+    }
+
+    function togglePause() {
+      gameState.isPaused = !gameState.isPaused;
+      const pauseScreen = document.getElementById('pause-screen');
+      if (gameState.isPaused) {
+        pauseScreen.classList.remove('hidden');
+      } else {
+        pauseScreen.classList.add('hidden');
+        document.getElementById('controls-modal').classList.add('hidden');
+      }
+    }
+
+    function showVictory() {
+      gameState.completed = true;
+      closeDialogue();
+      document.getElementById('stat-errors').innerText = gameState.incorrectAttempts;
+      document.getElementById('victory-screen').classList.remove('hidden');
+      document.getElementById('game-hud').classList.add('invisible');
+    }
+
+    function restartGame() {
+      gameState.currentTaskIdx = 0;
+      gameState.incorrectAttempts = 0;
+      gameState.completed = false;
+      gameState.level0Complete = false;
+      gameState.dialogueOpen = false;
+      gameState.isPaused = false;
+      gameState.player.x = 140;
+      gameState.player.y = 150;
+      gameState.player.carriedItem = null;
+
+      initItems();
+      updateTaskUI();
+      document.getElementById('victory-screen').classList.add('hidden');
+      document.getElementById('feedback-box').classList.add('hidden');
+      document.getElementById('pause-screen').classList.add('hidden');
+      document.getElementById('controls-modal').classList.add('hidden');
+      document.getElementById('game-hud').classList.remove('invisible');
+      talkToProfessor();
+    }
+
+    // Start Game Button
+    document.getElementById('start-game-btn').addEventListener('click', () => {
+      gameState.gameStarted = true;
+      document.getElementById('intro-screen').classList.add('hidden');
+      document.getElementById('game-hud').classList.remove('invisible');
+      talkToProfessor();
+    });
+
+    // Pause Controls
+    document.getElementById('pause-btn').addEventListener('click', togglePause);
+    document.getElementById('resume-btn').addEventListener('click', togglePause);
+
+    // Controls Modal in Pause Menu
+    const controlsModal = document.getElementById('controls-modal');
+    document.getElementById('controls-btn').addEventListener('click', () => {
+      controlsModal.classList.remove('hidden');
+    });
+    document.getElementById('controls-close-btn').addEventListener('click', () => {
+      controlsModal.classList.add('hidden');
+    });
+
+    // Sound Toggle Button
+    const pauseAudioToggle = document.getElementById('pause-audio-toggle');
+    pauseAudioToggle.addEventListener('click', () => {
+      sound.enabled = !sound.enabled;
+      pauseAudioToggle.innerText = sound.enabled ? "ЗВУК: УВІМК" : "ЗВУК: ВИМК";
+    });
+
+    document.getElementById('restart-btn').addEventListener('click', restartGame);
+
+    // Main Game Loop
+    function gameLoop() {
+      update();
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.onload = function() {
+      initItems();
+      updateTaskUI();
+      const portraitCtx = document.getElementById('npc-portrait').getContext('2d');
+      portraitCtx.imageSmoothingEnabled = false;
+      portraitCtx.drawImage(sprites.get('professor', generateProfessorSprite, 32, 32), 4, 0, 24, 24, 0, 0, 32, 32);
+      gameLoop();
+    };
+  </script>
+</body>
+</html>
