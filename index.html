@@ -2,8 +2,8 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>SERVER ROOM - Retro Pixel Educational Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>SERVER ROOM - Educational Game</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
@@ -74,15 +74,66 @@
     .dpad-btn:active {
       background: #0284c7;
     }
+  
+    /* ===== MOBILE / TOUCH ONLY (desktop is not affected) ===== */
+    #rotate-hint { display: none; }
+    @media (pointer: coarse) {
+      #mobile-controls { display: flex !important; }
+      .dpad-btn, #btn-action { -webkit-touch-callout: none; }
+    }
+    @media (pointer: coarse) and (orientation: portrait) {
+      #rotate-hint { display: block; }
+    }
+    @media (pointer: coarse) and (orientation: landscape) {
+      body { overflow: hidden; min-height: 100vh; min-height: 100dvh; }
+      #app-wrap { padding: 0 !important; max-width: none !important; height: 100vh; height: 100dvh; }
+      #viewport { width: auto !important; border-width: 0 !important; }
+      #gameCanvas {
+        width: min(100vw, 150dvh) !important; height: auto !important;
+        max-height: 100vh !important; max-height: 100dvh !important;
+      }
+      /* controls float over the black side margins, outside the dialogs */
+      #mobile-controls {
+        position: fixed; left: 0; right: 0; bottom: 8px; margin: 0 !important; z-index: 25;
+        padding: 0 max(10px, env(safe-area-inset-right)) 0 max(10px, env(safe-area-inset-left)) !important;
+        pointer-events: none;
+      }
+      #mobile-controls > * { pointer-events: auto; opacity: .8; }
+      #mobile-controls > div { width: 7.5rem !important; height: 7.5rem !important; }
+      #btn-action { width: 5.5rem !important; height: 5.5rem !important; }
+      /* tall overlays scroll instead of being clipped on short screens */
+      #intro-screen, #pause-screen, #controls-modal, #victory-screen {
+        overflow-y: auto; justify-content: flex-start !important; padding: 6px !important;
+      }
+      #intro-screen > .pixel-box, #pause-screen > .pixel-box,
+      #controls-modal > .pixel-box, #victory-screen > .pixel-box { margin: auto; padding: 12px !important; }
+      #npc-dialog-text, #feedback-text { font-size: 1rem; }
+    }
   </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen select-none">
 
+  <!-- Fullscreen prompt (touch devices only) -->
+  <div id="fs-prompt" class="hidden fixed inset-0 flex-col items-center justify-center p-4 text-center overflow-y-auto" style="z-index:100;background:rgba(2,6,23,.98);">
+    <div class="pixel-box p-5 max-w-sm w-full bg-slate-900 border-4 border-cyan-500 flex flex-col gap-4 m-auto">
+      <h1 class="pixel-font text-sm text-cyan-400 tracking-wider">SERVER ROOM</h1>
+      <p class="retro-font text-xl text-slate-200 leading-tight">
+        Для зручної гри на телефоні увімкніть повноекранний режим і поверніть телефон горизонтально.
+      </p>
+      <button id="fs-enter" class="pixel-btn pixel-font text-[10px] py-3">[ ПОВНИЙ ЕКРАН ]</button>
+      <p id="fs-ios-hint" class="hidden retro-font text-lg text-yellow-300 leading-tight">
+        Цей браузер не вміє відкривати повний екран. Натисніть «Поділитися» → «На початковий екран» і запускайте гру з іконки.
+      </p>
+      <button id="fs-skip" class="pixel-btn pixel-font text-[10px] py-3">ПРОДОВЖИТИ БЕЗ НЬОГО</button>
+    </div>
+  </div>
+
   <!-- Main Container -->
-  <div class="relative flex flex-col items-center justify-center w-full h-full max-w-5xl p-2 md:p-4">
+  <div id="app-wrap" class="relative flex flex-col items-center justify-center w-full h-full max-w-5xl p-2 md:p-4">
+    <div id="rotate-hint" class="pixel-font text-[9px] text-yellow-400 text-center mb-2 leading-relaxed">↻ Для зручності поверніть телефон горизонтально</div>
 
     <!-- Game Viewport Container -->
-    <div class="relative w-full overflow-hidden flex justify-center items-center bg-black border-4 border-slate-800 rounded-sm">
+    <div id="viewport" class="relative w-full overflow-hidden flex justify-center items-center bg-black border-4 border-slate-800 rounded-sm">
       
       <!-- Game Canvas -->
       <canvas id="gameCanvas" class="block w-full h-auto cursor-crosshair max-h-[75vh] object-contain"></canvas>
@@ -212,9 +263,17 @@
             </div>
           </div>
 
-          <button id="restart-btn" class="pixel-btn pixel-font text-xs px-6 py-3 uppercase cursor-pointer">
-            ПОЧАТИ СПОЧАТКУ
-          </button>
+          <p class="retro-font text-lg text-slate-400 mb-4">
+            Можете ще оглянути серверну. Попереду нові завдання!
+          </p>
+          <div class="flex flex-col sm:flex-row gap-3 justify-center">
+            <button id="close-victory-btn" class="pixel-btn pixel-font text-xs px-6 py-3 uppercase cursor-pointer">
+              ЗАКРИТИ
+            </button>
+            <button id="restart-btn" class="pixel-btn pixel-font text-xs px-6 py-3 uppercase cursor-pointer">
+              ПОЧАТИ СПОЧАТКУ
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -881,6 +940,100 @@
     // Professor NPC (gives the tasks through dialogue)
     const NPC = { x: 44, y: 216, w: 24, h: 24 };
 
+    // --- ENDING CUTSCENE ---
+    const NPC_HOME = { x: NPC.x, y: NPC.y };
+    const CUTSCENE_FOCUS = { x: 90, y: 110 };
+    const camera = { zoom: 1, cx: V_WIDTH / 2, cy: V_HEIGHT / 2 };
+
+    const ENDING_LINES = [
+      "Ха! Чую, як гуде сервер: наче бджолиний вулик, а не купа заліза. Ви врятували мені і нерви, і вуса!",
+      "Але не розслабляйтеся, колего. За стіною є ще одна серверна, і звідти доноситься підозріла тиша...",
+      "Мабуть, там на вас чекають нові завдання. Відпочиньте, оглянтеся, а я поки знайду ключі."
+    ];
+    const POST_GAME_TEXT = "Сервер працює бездоганно! Оглядайтеся, а я поки шукатиму ключі від сусідньої серверної.";
+
+    function updateParticles() {
+      for (const q of gameState.particles) { q.x += q.vx; q.y += q.vy; q.life--; }
+      gameState.particles = gameState.particles.filter(q => q.life > 0);
+    }
+
+    function stepNpcToward(tx, ty, speed) {
+      const dx = tx - NPC.x, dy = ty - NPC.y;
+      const d = Math.hypot(dx, dy);
+      if (d <= speed) { NPC.x = tx; NPC.y = ty; return true; }
+      NPC.x += dx / d * speed;
+      NPC.y += dy / d * speed;
+      return false;
+    }
+
+    function startEndingCutscene(explanation) {
+      closeFeedback();
+      closeDialogue(); // must run before the cutscene flag is set
+      Object.keys(keys).forEach(k => keys[k] = false);
+
+      const p = gameState.player;
+      p.isMoving = false; p.frame = 0; p.dir = 'right';
+
+      gameState.cutscene = {
+        phase: 'zoomIn', stage: 0, t: 0, line: 0,
+        lines: [explanation + " Сервер знову працює!", ...ENDING_LINES],
+        target: { x: Math.max(p.x + 28, 100), y: p.y }
+      };
+      document.getElementById('game-hud').classList.add('invisible');
+    }
+
+    function advanceCutsceneDialogue() {
+      const c = gameState.cutscene;
+      if (!c || c.phase !== 'talk') return;
+      c.line++;
+      if (c.line < c.lines.length) {
+        showDialogue(c.lines[c.line], 'ФІНАЛ');
+      } else {
+        c.phase = 'return';
+        c.stage = 0;
+      }
+    }
+
+    function updateCutscene() {
+      const c = gameState.cutscene;
+      c.t++;
+      let tz = 2, tcx = CUTSCENE_FOCUS.x, tcy = CUTSCENE_FOCUS.y;
+      NPC.walking = false;
+
+      if (c.phase === 'zoomIn') {
+        if (c.t > 50) { c.phase = 'walk'; c.stage = 0; }
+      } else if (c.phase === 'walk') {
+        NPC.walking = true;
+        // go along the floor first, then up (never through the rack)
+        if (c.stage === 0) {
+          if (stepNpcToward(c.target.x, NPC_HOME.y, 1.8)) c.stage = 1;
+        } else if (stepNpcToward(c.target.x, c.target.y, 1.8)) {
+          NPC.walking = false;
+          c.phase = 'talk';
+          showDialogue(c.lines[0], 'ФІНАЛ');
+        }
+      } else if (c.phase === 'return') {
+        tz = 1; tcx = V_WIDTH / 2; tcy = V_HEIGHT / 2;
+        NPC.walking = true;
+        if (c.stage === 0) {
+          if (stepNpcToward(c.target.x, NPC_HOME.y, 1.8)) c.stage = 1;
+        } else if (c.stage === 1 && stepNpcToward(NPC_HOME.x, NPC_HOME.y, 1.8)) {
+          c.stage = 2;
+        }
+        if (c.stage === 2 && Math.abs(camera.zoom - 1) < 0.02) {
+          NPC.walking = false;
+          camera.zoom = 1; camera.cx = V_WIDTH / 2; camera.cy = V_HEIGHT / 2;
+          gameState.cutscene = null;
+          showVictory();
+          return;
+        }
+      }
+
+      camera.zoom += (tz - camera.zoom) * 0.06;
+      camera.cx += (tcx - camera.cx) * 0.06;
+      camera.cy += (tcy - camera.cy) * 0.06;
+    }
+
     function shuffleArray(array) {
       const arr = [...array];
       for (let i = arr.length - 1; i > 0; i--) {
@@ -899,6 +1052,7 @@
       completed: false,
       level0Complete: false,
       dialogueOpen: false,
+      cutscene: null,
       player: {
         x: 140,
         y: 150,
@@ -991,6 +1145,7 @@
       const end = (e) => { e.preventDefault(); keys[keyCode] = false; };
       btn.addEventListener('touchstart', start);
       btn.addEventListener('touchend', end);
+      btn.addEventListener('touchcancel', end);
       btn.addEventListener('mousedown', start);
       btn.addEventListener('mouseup', end);
     };
@@ -1080,6 +1235,7 @@
         closeDialogue();
         return;
       }
+      if (gameState.cutscene) return;
       handleInteractionCore();
       checkLevel0Progress();
     }
@@ -1093,7 +1249,8 @@
 
       // 1. Repair Zone check
       const repairDist = Math.hypot(pCenterX - 120, pCenterY - 112);
-      if (p.carriedItem && repairDist < 55 && gameState.level0Complete) {
+      if (p.carriedItem && repairDist < 55 && gameState.level0Complete
+          && gameState.currentTaskIdx < TASKS_DATA.length) {
         attemptInstallation(p.carriedItem);
         return;
       }
@@ -1215,8 +1372,8 @@
 
         gameState.currentTaskIdx++;
         if (gameState.currentTaskIdx >= TASKS_DATA.length) {
-          showDialogue(currentTask.explanation, `РІВЕНЬ ${currentTask.id}/${TASKS_DATA.length}`);
-          setTimeout(showVictory, 1500);
+          updateTaskUI();
+          startEndingCutscene(currentTask.explanation);
         } else {
           updateTaskUI();
           showDialogue(currentTask.explanation + " " + TASKS_DATA[gameState.currentTaskIdx].desc, getLevelLabel());
@@ -1256,12 +1413,14 @@
 
     // --- PROFESSOR DIALOGUE ---
     function getLevelLabel() {
+      if (gameState.currentTaskIdx >= TASKS_DATA.length) return 'ФІНАЛ';
       if (!gameState.level0Complete) return 'РІВЕНЬ 0';
       const idx = Math.min(gameState.currentTaskIdx, TASKS_DATA.length - 1);
       return `РІВЕНЬ ${TASKS_DATA[idx].id}/${TASKS_DATA.length}`;
     }
 
     function getCurrentTaskText() {
+      if (gameState.currentTaskIdx >= TASKS_DATA.length) return POST_GAME_TEXT;
       if (!gameState.level0Complete) return LEVEL0_DATA.desc;
       return TASKS_DATA[Math.min(gameState.currentTaskIdx, TASKS_DATA.length - 1)].desc;
     }
@@ -1277,6 +1436,7 @@
     function closeDialogue() {
       gameState.dialogueOpen = false;
       document.getElementById('npc-dialog').classList.add('hidden');
+      advanceCutsceneDialogue();
     }
 
     function talkToProfessor() {
@@ -1302,6 +1462,7 @@
     // --- GAME LOOP & UPDATES ---
     function update() {
       if (gameState.completed || !gameState.gameStarted || gameState.isPaused) return;
+      if (gameState.cutscene) { updateCutscene(); updateParticles(); return; }
 
       const p = gameState.player;
       let dx = 0;
@@ -1341,15 +1502,19 @@
         p.frame = 0;
       }
 
-      gameState.particles.forEach((pt) => {
-        pt.x += pt.vx; pt.y += pt.vy; pt.life--;
-      });
-      gameState.particles = gameState.particles.filter(pt => pt.life > 0);
+      updateParticles();
     }
 
     // --- RENDER PIPELINE ---
     function render() {
       ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
+      ctx.save();
+      const z = camera.zoom;
+      const cx = Math.min(Math.max(camera.cx, V_WIDTH / (2 * z)), V_WIDTH - V_WIDTH / (2 * z));
+      const cy = Math.min(Math.max(camera.cy, V_HEIGHT / (2 * z)), V_HEIGHT - V_HEIGHT / (2 * z));
+      ctx.setTransform(z, 0, 0, z, V_WIDTH / 2 - cx * z, V_HEIGHT / 2 - cy * z);
+      ctx.imageSmoothingEnabled = false;
+
 
       const floorImg = sprites.get('floor', generateFloorTile);
       const wallImg = sprites.get('wall', generateWallTile);
@@ -1394,8 +1559,9 @@
 
       // Render Professor NPC
       const professorImg = sprites.get('professor', generateProfessorSprite, 32, 32);
-      ctx.drawImage(professorImg, NPC.x - 4, NPC.y - 8);
-      if (gameState.gameStarted && !gameState.dialogueOpen && !gameState.player.carriedItem &&
+      const npcBob = (NPC.walking && Math.floor(Date.now() / 120) % 2) ? -1 : 0;
+      ctx.drawImage(professorImg, Math.round(NPC.x) - 4, Math.round(NPC.y) - 8 + npcBob);
+      if (gameState.gameStarted && !gameState.dialogueOpen && !gameState.cutscene && !gameState.player.carriedItem &&
           isNearProfessor(gameState.player.x + 12, gameState.player.y + 12)) {
         const hint = 'E: ГОВОРИТИ';
         ctx.font = '8px "Press Start 2P", cursive';
@@ -1448,6 +1614,14 @@
         ctx.fillStyle = pt.color;
         ctx.fillRect(pt.x, pt.y, 3, 3);
       });
+
+      ctx.restore();
+      const bar = Math.round((camera.zoom - 1) * 28); // cinematic bars grow with the zoom
+      if (bar > 0) {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, V_WIDTH, bar);
+        ctx.fillRect(0, V_HEIGHT - bar, V_WIDTH, bar);
+      }
     }
 
     // --- UI UPDATES & PAUSE LOGIC ---
@@ -1458,7 +1632,7 @@
         statusText.innerText = `РІВЕНЬ 0: НА СТОЛАХ ${countItemsOnTables()}/${total}`;
         return;
       }
-      if (gameState.currentTaskIdx >= TASKS_DATA.length) return;
+      if (gameState.currentTaskIdx >= TASKS_DATA.length) { statusText.innerText = 'СЕРВЕР ПРАЦЮЄ'; return; }
       statusText.innerText = getLevelLabel();
     }
 
@@ -1488,6 +1662,9 @@
       gameState.level0Complete = false;
       gameState.dialogueOpen = false;
       gameState.isPaused = false;
+      gameState.cutscene = null;
+      camera.zoom = 1; camera.cx = V_WIDTH / 2; camera.cy = V_HEIGHT / 2;
+      NPC.x = NPC_HOME.x; NPC.y = NPC_HOME.y; NPC.walking = false;
       gameState.player.x = 140;
       gameState.player.y = 150;
       gameState.player.carriedItem = null;
@@ -1531,6 +1708,40 @@
     });
 
     document.getElementById('restart-btn').addEventListener('click', restartGame);
+
+    document.getElementById('close-victory-btn').addEventListener('click', () => {
+      document.getElementById('victory-screen').classList.add('hidden');
+      document.getElementById('game-hud').classList.remove('invisible');
+      gameState.completed = false; // the player can walk around freely again
+    });
+
+    // --- FULLSCREEN PROMPT (touch devices only) ---
+    (function () {
+      if (!window.matchMedia('(pointer: coarse)').matches) return;
+      const root = document.documentElement;
+      const reqFs = root.requestFullscreen || root.webkitRequestFullscreen;
+      const alreadyFull = document.fullscreenElement || navigator.standalone ||
+        window.matchMedia('(display-mode: fullscreen)').matches ||
+        window.matchMedia('(display-mode: standalone)').matches;
+      if (alreadyFull) return;
+
+      const prompt = document.getElementById('fs-prompt');
+      const enterBtn = document.getElementById('fs-enter');
+      prompt.classList.remove('hidden');
+      if (!reqFs) {
+        enterBtn.classList.add('hidden');
+        document.getElementById('fs-ios-hint').classList.remove('hidden');
+      }
+
+      const close = () => prompt.classList.add('hidden');
+      enterBtn.addEventListener('click', async () => {
+        sound.init();
+        try { await reqFs.call(root, { navigationUI: 'hide' }); } catch (e) {}
+        try { await screen.orientation.lock('landscape'); } catch (e) {}
+        close();
+      });
+      document.getElementById('fs-skip').addEventListener('click', () => { sound.init(); close(); });
+    })();
 
     // Main Game Loop
     function gameLoop() {
