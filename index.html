@@ -109,6 +109,11 @@
       #controls-modal > .pixel-box, #victory-screen > .pixel-box { margin: auto; padding: 12px !important; }
       #npc-dialog-text, #feedback-text { font-size: 1rem; }
     }
+  .pc-slot{border:2px dashed #94a3b8;display:flex;align-items:center;justify-content:center;padding:4px;font-size:1rem;line-height:1;color:#cbd5e1;background:#0b2a1a;cursor:pointer}
+    .pc-slot.ok{border:2px solid #4ade80;background:#15803d;color:#fff}
+    .pc-slot.over{border-color:#38bdf8}
+    .pc-part{padding:6px 8px;border:2px solid #38bdf8;background:#1e293b;color:#f8fafc;cursor:grab;font-size:1.1rem}
+    .pc-part.sel{outline:2px solid #facc15}
   </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen select-none">
@@ -143,6 +148,7 @@
         <div id="status-chip" class="pixel-box px-2 py-1">
           <span id="status-text" class="pixel-font text-[9px] md:text-[10px] text-cyan-300">РІВЕНЬ 0</span>
         </div>
+        <div id="bonus-chip" class="hidden pixel-box px-2 py-1"><span id="bonus-text" class="pixel-font text-[9px] md:text-[10px] text-yellow-300">★ 0</span></div>
         <button id="pause-btn" class="pixel-btn pixel-font text-[10px] px-3 py-2 pointer-events-auto shrink-0 ml-2">
           [ ПАУЗА ]
         </button>
@@ -237,6 +243,21 @@
           <button id="feedback-close" class="pixel-btn text-[10px] px-2 py-1">
             ОК
           </button>
+        </div>
+      </div>
+
+      <!-- PC schematic -->
+      <div id="pc-modal" class="hidden absolute inset-0 bg-slate-950/95 z-30 flex flex-col items-center justify-center p-2 overflow-y-auto">
+        <div class="pixel-box p-3 w-full max-w-xl bg-slate-900 border-4 border-cyan-500 m-auto">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="pixel-font text-[10px] text-yellow-400">СХЕМА ПК</h3>
+            <button id="pc-close" class="pixel-btn pixel-font text-[9px] px-2 py-1">[ НАЗАД ]</button>
+          </div>
+          <p id="pc-msg" class="retro-font text-lg text-slate-200 leading-tight mb-2 min-h-[2.5rem]"></p>
+          <div class="grid grid-cols-2 gap-3">
+            <div id="pc-board" class="grid grid-cols-2 gap-2 p-2" style="background:#14532d;border:3px solid #166534"></div>
+            <div id="pc-tray" class="flex flex-col gap-2"></div>
+          </div>
         </div>
       </div>
 
@@ -382,31 +403,31 @@
         id: 1,
         desc: "Немає накопичувача для ОС і файлів. Знайдіть його.",
         correctItem: "ssd",
-        explanation: "Правильно! SSD швидко й постійно зберігає ОС, програми та файли."
+        explanation: "SSD: постійне сховище."
       },
       {
         id: 2,
         desc: "Немає оперативної пам'яті. Знайдіть деталь для тимчасового зберігання даних програм.",
         correctItem: "ram",
-        explanation: "Чудово! RAM (ОЗП) працює та зберігає дані, які зараз використовує процесор."
+        explanation: "RAM: тимчасова пам'ять."
       },
       {
         id: 3,
         desc: "Серверу потрібні паралельні графічні обчислення. Знайдіть прискорювач.",
         correctItem: "gpu",
-        explanation: "Відмінно! GPU прискорює графіку та паралельні обчислення."
+        explanation: "GPU: графіка й паралельні обчислення."
       },
       {
         id: 4,
         desc: "Техніку нічого не видно: немає пристрою відображення. Знайдіть його.",
         correctItem: "monitor",
-        explanation: "Ура! Новий монітор виводить зображення."
+        explanation: "Монітор виводить зображення."
       },
       {
         id: 5,
         desc: "Сервер без мережі. Знайдіть кабель для дротового з'єднання.",
         correctItem: "ethernet",
-        explanation: "Супер! Ethernet дає надійне дротове з'єднання з мережею."
+        explanation: "Ethernet: дротова мережа."
       }
     ];
 
@@ -435,7 +456,8 @@
       book: "Сервер (книга для чайників)",
       keyboard: "Клавіатура",
       mouse: "Миша",
-      usb: "Флешка"
+      usb: "Флешка",
+      cooler: "Блок охолодження"
     };
 
     // --- SPRITE SHEET GENERATOR ---
@@ -448,11 +470,32 @@
         const ctx = cvs.getContext('2d');
         ctx.imageSmoothingEnabled = false;
         drawFn(ctx, width, height);
+        if (!/^(floor|wall)/.test(key)) shadeSprite(cvs);
         this.cache[key] = cvs;
         return cvs;
       }
     }
     const sprites = new SpriteSheet();
+
+    // adds rim light / shadow and a soft vertical gradient to every sprite
+    function shadeSprite(cv) {
+      const c = cv.getContext('2d'), w = cv.width, h = cv.height;
+      const img = c.getImageData(0, 0, w, h), a = img.data, o = new Uint8ClampedArray(a);
+      const edge = (x, y) => {
+        if (x < 0 || y < 0 || x >= w || y >= h) return true;
+        const i = (y * w + x) * 4;
+        return o[i + 3] < 128 || (o[i] < 20 && o[i + 1] < 25 && o[i + 2] < 35);
+      };
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        if (o[i + 3] < 128 || (o[i] < 20 && o[i + 1] < 25 && o[i + 2] < 35)) continue;
+        let d = (0.5 - y / h) * 16;
+        if (edge(x, y - 1)) d += 30; if (edge(x, y + 1)) d -= 30;
+        if (edge(x - 1, y)) d += 14; if (edge(x + 1, y)) d -= 14;
+        a[i] += d; a[i + 1] += d; a[i + 2] += d;
+      }
+      c.putImageData(img, 0, 0);
+    }
 
     function drawPixelRect(ctx, color, x, y, w, h) {
       ctx.fillStyle = color;
@@ -493,42 +536,29 @@
     }
 
     // --- ENVIRONMENT SPRITES ---
-    function generateFloorTile(ctx, w, h) {
-      drawPixelRect(ctx, '#1a2130', 0, 0, w, h);
-      drawPixelRect(ctx, '#252f44', 0, 0, w, 1);
-      drawPixelRect(ctx, '#252f44', 0, 0, 1, h);
-      drawPixelRect(ctx, '#0d121c', 0, h - 1, w, 1);
-      drawPixelRect(ctx, '#0d121c', w - 1, 0, 1, h);
-      // inner raised panel
-      drawPixelRect(ctx, '#1f293b', 3, 3, w - 6, h - 6);
-      drawPixelRect(ctx, '#2b3850', 3, 3, w - 6, 1);
-      drawPixelRect(ctx, '#2b3850', 3, 3, 1, h - 6);
-      drawPixelRect(ctx, '#141b29', 3, h - 4, w - 6, 1);
-      drawPixelRect(ctx, '#141b29', w - 4, 3, 1, h - 6);
-      // ventilation perforation
-      for (let i = 0; i < 3; i++) {
-        for (let j = 0; j < 3; j++) {
-          drawPixelRect(ctx, '#0f1522', 8 + i * 7, 8 + j * 7, 2, 2);
-          drawPixelRect(ctx, '#2e3b54', 8 + i * 7, 10 + j * 7, 2, 1);
-        }
+    function generateFloorTile(ctx, w, h, v = 0) {
+      const R = (c, x, y, a, b) => drawPixelRect(ctx, c, x, y, a, b);
+      R('#0f1727', 0, 0, w, h); R('#16223a', 1, 1, w - 2, h - 2);
+      R('#24344f', 1, 1, w - 2, 1); R('#24344f', 1, 1, 1, h - 2);
+      R('#0a101c', 0, h - 1, w, 1); R('#0a101c', w - 1, 0, 1, h);
+      for (let y = 2; y < h - 2; y++) for (let x = 2; x < w - 2; x++) {
+        const n = ((x * 73856093) ^ (y * 19349663) ^ (v * 83492791)) & 15;
+        if (n === 0) R('#1f2e4a', x, y, 1, 1); else if (n === 1) R('#0e1626', x, y, 1, 1);
       }
+      for (let x = 2; x < w - 2; x += 2) for (let y = h - 8; y < h - 2; y++) if (((x >> 1) + y) % 2 === 0) R('#1b2943', x, y, 1, 1);
+      if (v === 1) for (let i = 0; i < 4; i++) { R('#0a101c', 8, 8 + i * 4, 16, 2); R('#2a3b5a', 8, 10 + i * 4, 16, 1); }
+      if (v === 2) { R('#7c2d12', 3, 15, w - 6, 3); R('#ea580c', 3, 15, w - 6, 1); R('#0a101c', 3, 18, w - 6, 1); }
     }
 
     function generateWallTile(ctx, w, h) {
-      drawPixelRect(ctx, '#0b0f19', 0, 0, w, h);
-      drawPixelRect(ctx, '#1b2438', 1, 1, w - 2, h - 2);
-      drawPixelRect(ctx, '#34425e', 1, 1, w - 2, 2);
-      drawPixelRect(ctx, '#2a3650', 1, 1, 2, h - 2);
-      drawPixelRect(ctx, '#0f1523', 1, h - 3, w - 2, 2);
-      drawPixelRect(ctx, '#131b2c', w - 3, 1, 2, h - 2);
-      // horizontal seam
-      drawPixelRect(ctx, '#0f1523', 3, 15, w - 6, 2);
-      drawPixelRect(ctx, '#2a3650', 3, 17, w - 6, 1);
-      // rivets
-      [[5, 6], [w - 7, 6], [5, h - 10], [w - 7, h - 10]].forEach(([rx, ry]) => {
-        drawPixelRect(ctx, '#6b7c9b', rx, ry, 2, 2);
-        drawPixelRect(ctx, '#0b0f19', rx + 1, ry + 1, 1, 1);
-      });
+      const R = (c, x, y, a, b) => drawPixelRect(ctx, c, x, y, a, b);
+      R('#070b14', 0, 0, w, h); R('#121c30', 1, 1, w - 2, h - 2);
+      R('#2a3a5c', 1, 1, w - 2, 2); R('#1d2a45', 1, 3, w - 2, 1); R('#0b1220', 1, h - 3, w - 2, 2);
+      for (let y = 4; y < h - 4; y++) for (let x = 2; x < w - 2; x++)
+        if ((((x * 374761393) ^ (y * 668265263)) & 15) === 0) R('#1a2742', x, y, 1, 1);
+      R('#0b1220', 3, 15, w - 6, 2); R('#2a3a5c', 3, 17, w - 6, 1);
+      [[5, 6], [w - 7, 6], [5, h - 10], [w - 7, h - 10]].forEach(([rx, ry]) => { R('#7b8cab', rx, ry, 2, 2); R('#0b0f19', rx + 1, ry + 1, 1, 1); });
+      R('#0ea5e9', w - 12, h - 6, 6, 1);
     }
 
     function generateServerRack(ctx, w, h, isInstalledCount = 0) {
@@ -798,6 +828,15 @@
           R('#eab308', 20, 7, 1, 2);
           R('#2563eb', 17, 10, 3, 2);
           break;
+        case 'cooler':
+          R('#64748b', 2, 2, 20, 20);
+          R('#94a3b8', 2, 2, 20, 1);
+          R('#334155', 2, 21, 20, 1);
+          drawPixelDisc(ctx, '#0f172a', 12, 12, 8);
+          R('#60a5fa', 6, 11, 12, 2);
+          R('#60a5fa', 11, 6, 2, 12);
+          drawPixelDisc(ctx, '#e2e8f0', 12, 12, 2);
+          break;
         case 'coffee':
           R('#f8fafc', 5, 8, 12, 12);
           R('#cbd5e1', 14, 8, 3, 12);
@@ -909,7 +948,7 @@
       [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
     ];
 
-    const TABLES = [
+    let TABLES = [
       { id: 1, x: 250, y: 48,  w: 160, h: 48 },
       { id: 2, x: 250, y: 140, w: 160, h: 48 },
       { id: 3, x: 250, y: 230, w: 160, h: 48 }
@@ -938,7 +977,7 @@
     let tableSlots = [];
 
     // Professor NPC (gives the tasks through dialogue)
-    const NPC = { x: 44, y: 216, w: 24, h: 24 };
+    const NPC = { x: 96, y: 248, w: 24, h: 24 };
 
     // --- ENDING CUTSCENE ---
     const NPC_HOME = { x: NPC.x, y: NPC.y };
@@ -948,9 +987,9 @@
     const ENDING_LINES = [
       "Ха! Чую, як гуде сервер: наче бджолиний вулик, а не купа заліза. Ви врятували мені і нерви, і вуса!",
       "Але не розслабляйтеся, колего. За стіною є ще одна серверна, і звідти доноситься підозріла тиша...",
-      "Мабуть, там на вас чекають нові завдання. Відпочиньте, оглянтеся, а я поки знайду ключі."
+      "Мабуть, там на вас чекають нові завдання. Відпочиньте, оглянтеся, а потім заходьте до дверей поруч."
     ];
-    const POST_GAME_TEXT = "Сервер працює бездоганно! Оглядайтеся, а я поки шукатиму ключі від сусідньої серверної.";
+    const POST_GAME_TEXT = "Сервер працює бездоганно! Оглядайтеся, а двері до сусідньої серверної вже відчинені.";
 
     function updateParticles() {
       for (const q of gameState.particles) { q.x += q.vx; q.y += q.vy; q.life--; }
@@ -987,7 +1026,7 @@
       if (!c || c.phase !== 'talk') return;
       c.line++;
       if (c.line < c.lines.length) {
-        showDialogue(c.lines[c.line], 'ФІНАЛ');
+        showDialogue(c.lines[c.line], 'РІВЕНЬ 1: ПРОЙДЕНО');
       } else {
         c.phase = 'return';
         c.stage = 0;
@@ -1010,7 +1049,7 @@
         } else if (stepNpcToward(c.target.x, c.target.y, 1.8)) {
           NPC.walking = false;
           c.phase = 'talk';
-          showDialogue(c.lines[0], 'ФІНАЛ');
+          showDialogue(c.lines[0], 'РІВЕНЬ 1: ПРОЙДЕНО');
         }
       } else if (c.phase === 'return') {
         tz = 1; tcx = V_WIDTH / 2; tcy = V_HEIGHT / 2;
@@ -1023,8 +1062,7 @@
         if (c.stage === 2 && Math.abs(camera.zoom - 1) < 0.02) {
           NPC.walking = false;
           camera.zoom = 1; camera.cx = V_WIDTH / 2; camera.cy = V_HEIGHT / 2;
-          gameState.cutscene = null;
-          showVictory();
+          gameState.cutscene = null; document.getElementById('game-hud').classList.remove('invisible'); updateTaskUI();
           return;
         }
       }
@@ -1052,7 +1090,7 @@
       completed: false,
       level0Complete: false,
       dialogueOpen: false,
-      cutscene: null,
+      cutscene: null, room: 1, coolerDone: false, pcFixed: false, pcOpen: false, bonus: 0,
       player: {
         x: 140,
         y: 150,
@@ -1120,9 +1158,7 @@
       keys[e.code] = true;
 
       if (e.code === 'Escape') {
-        if (gameState.gameStarted && !gameState.completed) {
-          togglePause();
-        }
+        if (gameState.pcOpen) closePc(); else if (gameState.gameStarted && !gameState.completed) { togglePause(); }
       }
 
       if (e.code === 'KeyE' || e.code === 'Space' || e.key === 'e' || e.key === 'Е' || e.key === 'е') {
@@ -1235,8 +1271,7 @@
         closeDialogue();
         return;
       }
-      if (gameState.cutscene) return;
-      handleInteractionCore();
+      if (gameState.cutscene || gameState.pcOpen) return; handleInteractionCore();
       checkLevel0Progress();
     }
 
@@ -1249,6 +1284,17 @@
 
       // 1. Repair Zone check
       const repairDist = Math.hypot(pCenterX - 120, pCenterY - 112);
+      if (gameState.room === 1 && p.carriedItem && p.carriedItem.type === 'coffee'
+          && Math.hypot(pCenterX - (NPC.x + 12), pCenterY - (NPC.y + 12)) < 56) { giveCoffee(); return; }
+      if (gameState.room === 2) {
+        if (Math.hypot(pCenterX - 16, pCenterY - 224) < 64) { goRoom(1); return; }
+        if (p.carriedItem && repairDist < 55 && !gameState.coolerDone) { attemptCooling(p.carriedItem); return; }
+        if (!p.carriedItem && !gameState.pcFixed && Math.hypot(pCenterX - 367, pCenterY - 140) < 64) { openPc(); return; }
+      } else {
+        const dDoor = Math.hypot(pCenterX - 16, pCenterY - 224);
+        const dProf = Math.hypot(pCenterX - (NPC.x + 12), pCenterY - (NPC.y + 12));
+        if (dDoor < 64 && dDoor < dProf) { useDoor(); return; }
+      }
       if (p.carriedItem && repairDist < 55 && gameState.level0Complete
           && gameState.currentTaskIdx < TASKS_DATA.length) {
         attemptInstallation(p.carriedItem);
@@ -1344,7 +1390,7 @@
 
     function checkLevel0Progress() {
       if (gameState.level0Complete) return;
-      if (countItemsOnTables() >= gameState.items.length) {
+      if (countItemsOnTables() >= gameState.items.filter(i => !i.installed).length) {
         completeLevel0();
       } else {
         updateTaskUI();
@@ -1413,7 +1459,7 @@
 
     // --- PROFESSOR DIALOGUE ---
     function getLevelLabel() {
-      if (gameState.currentTaskIdx >= TASKS_DATA.length) return 'ФІНАЛ';
+      if (gameState.currentTaskIdx >= TASKS_DATA.length) return 'РІВЕНЬ 1: ПРОЙДЕНО';
       if (!gameState.level0Complete) return 'РІВЕНЬ 0';
       const idx = Math.min(gameState.currentTaskIdx, TASKS_DATA.length - 1);
       return `РІВЕНЬ ${TASKS_DATA[idx].id}/${TASKS_DATA.length}`;
@@ -1463,6 +1509,7 @@
     function update() {
       if (gameState.completed || !gameState.gameStarted || gameState.isPaused) return;
       if (gameState.cutscene) { updateCutscene(); updateParticles(); return; }
+      if (gameState.pcOpen) return;
 
       const p = gameState.player;
       let dx = 0;
@@ -1505,14 +1552,257 @@
       updateParticles();
     }
 
+    // --- LEVEL 2: DOOR, ROOM, PC SCHEMATIC ---
+    const roomStore = {};
+    const TABLES_R1 = TABLES;
+    const TABLES_R2 = [1, 2, 3].map(id => ({ id, x: 250, y: 40 + (id - 1) * 88, w: 160, h: 64 }));
+    let fadeAlpha = 0;
+    let pcState = { selected: null, placed: {} };
+
+    function useDoor() {
+      if (gameState.currentTaskIdx < TASKS_DATA.length) {
+        showFeedback("Двері зачинені", "Спочатку полагодьте сервер у цій кімнаті.");
+      } else enterRoom2();
+    }
+
+    function enterRoom2() { goRoom(2); }
+
+    function goRoom(n) {
+      const g = gameState, p = g.player, carried = p.carriedItem;
+      if (carried) g.items = g.items.filter(i => i !== carried);
+      roomStore[g.room] = { items: g.items, slots: tableSlots };
+      g.room = n; TABLES = (n === 2) ? TABLES_R2 : TABLES_R1;
+      p.x = 44; p.y = 216; p.dir = 'right';
+      if (n === 1) { NPC.x = NPC_HOME.x; NPC.y = NPC_HOME.y; } else { NPC.x = -200; NPC.y = -200; }
+      const saved = roomStore[n];
+      if (saved) { g.items = saved.items; tableSlots = saved.slots; }
+      else {
+        tableSlots = generateTableSlots().map(s => ({ ...s, y: s.y + 16 }));
+        const spots = shuffleArray(FLOOR_SPOTS);
+        g.items = ['cooler', 'coffee', 'fire_extinguisher', 'keyboard', 'mouse', 'usb'].map((t, i) =>
+          ({ id: t, type: t, x: spots[i].x, y: spots[i].y, installed: false, currentSlot: null }));
+      }
+      if (carried) g.items.push(carried);
+      fadeAlpha = 1;
+      updateTaskUI();
+      if (n === 2 && !saved) showDialogue("Сервер перегрівається! Знайдіть кулер. Один ПК теж зламаний.", 'РІВЕНЬ 2');
+    }
+
+    function giveCoffee() {
+      const p = gameState.player;
+      p.carriedItem.installed = true; p.carriedItem = null; gameState.bonus += 50;
+      sound.playSuccess(); NPC.joy = 90;
+      spawnParticles(NPC.x + 12, NPC.y, '#facc15'); spawnParticles(NPC.x + 12, NPC.y, '#f472b6');
+      document.getElementById('bonus-chip').classList.remove('hidden');
+      document.getElementById('bonus-text').innerText = '★ ' + gameState.bonus;
+      showDialogue("Кавуся! Ви рятівник! +50 ★", getLevelLabel());
+    }
+
+    function generateDesk(ctx, w, h) {
+      const R = (c, x, y, a, b) => drawPixelRect(ctx, c, x, y, a, b);
+      R('#05080f', 0, 0, w, h);
+      R('#46536b', 1, 1, w - 2, 53); R('#5c6b88', 1, 1, w - 2, 2); R('#5c6b88', 1, 1, 2, 53);
+      R('#364156', 1, 51, w - 2, 3); R('#364156', w - 3, 1, 2, 53);
+      for (let x = 4; x < w - 4; x += 2) for (let y = 4; y < 50; y++) if ((x * 7 + y * 13) % 23 === 0) R('#515f7b', x, y, 1, 1);
+      R('#2b3446', 1, 54, w - 2, h - 55); R('#3a455b', 1, 54, w - 2, 1);
+      R('#161c28', 6, 57, 44, 5); R('#161c28', w - 50, 57, 44, 5);
+      R('#8b9bb8', 24, 58, 8, 1); R('#8b9bb8', w - 32, 58, 8, 1);
+    }
+
+    function afterRoom2Step(text) {
+      updateTaskUI();
+      const done = gameState.coolerDone && gameState.pcFixed;
+      showDialogue(text + (done ? " Рівень 2 пройдено!" : ""),
+                   done ? 'РІВЕНЬ 2: ПРОЙДЕНО' : 'РІВЕНЬ 2');
+    }
+
+    function attemptCooling(item) {
+      if (item.type === 'cooler') {
+        sound.playSuccess(); item.installed = true; gameState.player.carriedItem = null;
+        gameState.coolerDone = true; spawnParticles(64, 96, '#38bdf8');
+        afterRoom2Step("Кулер встановлено: сервер охолоджено.");
+      } else {
+        sound.playError(); gameState.incorrectAttempts++; spawnParticles(120, 120, '#ef4444');
+        showFeedback("Не той компонент!", DISTRACTOR_FEEDBACK[item.type] || "Це не охолоджує сервер.");
+      }
+    }
+
+    const PC_PARTS = {
+      cpu: { name: 'Процесор (CPU)', slot: 'Сокет процесора', cls: 'col-start-1 row-start-1 h-20',
+             hint: 'Процесор — «мозок» ПК: виконує команди програм і керує обчисленнями.' },
+      ram: { name: 'Модуль ОЗП (RAM)', slot: 'Слот DIMM', cls: 'col-start-2 row-start-1 h-20',
+             hint: 'ОЗП тимчасово зберігає дані запущених програм і дає процесору швидкий доступ до них.' },
+      gpu: { name: 'Відеокарта (GPU)', slot: 'Слот PCIe x16', cls: 'col-span-2 row-start-2 h-12',
+             hint: 'Відеокарта формує зображення й швидко виконує паралельні обчислення.' }
+    };
+
+    function renderPc() {
+      const board = document.getElementById('pc-board'), tray = document.getElementById('pc-tray');
+      board.innerHTML = ''; tray.innerHTML = '';
+      Object.entries(PC_PARTS).forEach(([k, d]) => {
+        const s = document.createElement('div');
+        s.className = 'pc-slot retro-font ' + d.cls + (pcState.placed[k] ? ' ok' : '');
+        s.textContent = pcState.placed[k] ? '✓ ' + d.name : d.slot;
+        s.onclick = () => placePc(k);
+        s.ondragover = e => { e.preventDefault(); s.classList.add('over'); };
+        s.ondragleave = () => s.classList.remove('over');
+        s.ondrop = e => { e.preventDefault(); pcState.selected = e.dataTransfer.getData('text') || pcState.selected; placePc(k); };
+        board.appendChild(s);
+        if (!pcState.placed[k]) {
+          const el = document.createElement('div');
+          el.className = 'pc-part retro-font' + (pcState.selected === k ? ' sel' : '');
+          el.textContent = d.name; el.draggable = true;
+          el.onclick = () => { pcState.selected = k; renderPc(); };
+          el.ondragstart = e => { pcState.selected = k; e.dataTransfer.setData('text', k); };
+          tray.appendChild(el);
+        }
+      });
+    }
+
+    function placePc(k) {
+      const sel = pcState.selected, msg = document.getElementById('pc-msg');
+      if (pcState.placed[k]) return;
+      if (!sel) { msg.textContent = 'Спочатку оберіть деталь зі списку.'; return; }
+      if (sel !== k) {
+        gameState.incorrectAttempts++; sound.playError(); pcState.selected = null;
+        msg.textContent = "Не підходить: " + PC_PARTS[sel].name + " має інший роз'єм. Перевірте форму слота.";
+        renderPc(); return;
+      }
+      pcState.placed[k] = true; pcState.selected = null; sound.playPickup();
+      msg.textContent = PC_PARTS[k].hint; renderPc();
+      if (Object.keys(pcState.placed).length === 3) { sound.playSuccess(); setTimeout(finishPc, 1400); }
+    }
+
+    function openPc() {
+      pcState = { selected: null, placed: {} };
+      document.getElementById('pc-msg').textContent = 'Встановіть деталі: перетягніть їх у слоти або торкніться деталі, а потім слота.';
+      renderPc();
+      document.getElementById('pc-modal').classList.remove('hidden');
+      gameState.pcOpen = true;
+      Object.keys(keys).forEach(k => keys[k] = false);
+    }
+    function closePc() {
+      gameState.pcOpen = false;
+      document.getElementById('pc-modal').classList.add('hidden');
+    }
+    function finishPc() {
+      if (!gameState.pcOpen) return;
+      closePc(); gameState.pcFixed = true; spawnParticles(367, 140, '#10b981');
+      afterRoom2Step("Комп'ютер знову працює!");
+    }
+    document.getElementById('pc-close').addEventListener('click', closePc);
+
+    function drawDoor() {
+      const open = gameState.room === 2 || gameState.currentTaskIdx >= TASKS_DATA.length;
+      const R = (c, x, y, w, h) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); };
+      R('#05080f', 0, 190, 32, 68);
+      R(open ? '#020617' : '#475569', 3, 194, 26, 62);
+      if (open) {
+        R('#fde68a', 3, 194, 3, 62); R('#22c55e', 22, 198, 4, 4);
+        if (Math.floor(Date.now() / 400) % 2) R('#4ade80', 12, 222, 10, 3);
+      } else {
+        R('#ef4444', 22, 198, 4, 4); R('#facc15', 24, 224, 2, 5);
+      }
+    }
+
+    function drawComputer(t) {
+      const tm = Date.now();
+      [16, 100].forEach((ox, idx) => {
+        const x = t.x + ox, y = t.y - 12, bad = (t.id === 2 && idx === 1 && !gameState.pcFixed);
+        const R = (c, a, b, w, h) => { ctx.fillStyle = c; ctx.fillRect(x + a, y + b, w, h); };
+        R('#05080f', -1, -1, 36, 26); R('#3b4659', 0, 0, 34, 24); R('#6b7a93', 0, 0, 34, 1); R('#232c3d', 0, 23, 34, 1);
+        R(bad ? '#0b0f19' : '#0e7490', 2, 2, 30, 19);
+        if (bad) {
+          for (let i = 0; i < 14; i++) { R('#ef4444', 9 + i, 5 + i, 2, 1); R('#ef4444', 23 - i, 5 + i, 2, 1); }
+          if (Math.floor(tm / 200) % 2) R('#facc15', (tm >> 4) % 28 + 3, (tm >> 3) % 16 + 3, 2, 2);
+        } else {
+          R('#67e8f9', 4, 4, 10, 1); R('#155e75', 4, 8, 22, 1); R('#155e75', 4, 11, 16, 1); R('#22d3ee', 4, 15, 6, 1);
+        }
+        R('#4b5563', 14, 24, 6, 4); R('#6b7280', 10, 28, 14, 2);
+        R('#475569', 5, 33, 24, 5); R('#94a3b8', 5, 33, 24, 1);
+      });
+    }
+
+    function drawHint(text, hx, hy) {
+      ctx.font = '8px "Press Start 2P", cursive';
+      const hw = ctx.measureText(text).width;
+      ctx.fillStyle = '#161b22'; ctx.fillRect(hx - 4, hy - 9, hw + 8, 13);
+      ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1; ctx.strokeRect(hx - 4, hy - 9, hw + 8, 13);
+      ctx.fillStyle = '#e0f2fe'; ctx.fillText(text, hx, hy);
+    }
+
+    function drawRoomHints() {
+      const g = gameState, p = g.player;
+      if (!g.gameStarted || g.dialogueOpen || g.cutscene || g.pcOpen) return;
+      const cx = p.x + 12, cy = p.y + 12;
+      if (Math.hypot(cx - 16, cy - 224) < 64) drawHint(g.room === 1 ? 'E: ДВЕРІ' : 'E: НАЗАД', 8, 186);
+      if (g.room === 2 && !g.pcFixed && !p.carriedItem && Math.hypot(cx - 367, cy - 140) < 64) drawHint('E: ПОЛАГОДИТИ ПК', 290, 108);
+    }
+
+    // --- PARALLAX / LIGHTING ---
+    function getParallax() {
+      const p = gameState.player, k = Math.max(0, 2 - camera.zoom);
+      return { x: ((p.x + 12) / V_WIDTH - 0.5) * k, y: ((p.y + 12) / V_HEIGHT - 0.5) * k };
+    }
+
+    function drawBackWall(par) { // far layer: moves less than the room
+      const ox = par.x * 6, oy = par.y * 3, hot = gameState.room === 2 && !gameState.coolerDone;
+      ctx.save(); ctx.beginPath(); ctx.rect(32, 2, 416, 28); ctx.clip();
+      ctx.fillStyle = '#0a1020'; ctx.fillRect(32, 2, 416, 28);
+      const R = (c, x, y, w, h) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); };
+      for (let x = -8; x < 460; x += 64) {
+        const X = x + ox;
+        R('#1b2740', X + 4, 6 + oy, 40, 18); R('#070b14', X + 6, 8 + oy, 36, 14);
+        for (let i = 0; i < 6; i++) { const hg = 3 + Math.abs(i * 7 + x) % 9; R(hot ? '#ef4444' : '#22c55e', X + 9 + i * 5, 21 + oy - hg, 3, hg); }
+        R('#38bdf8', X + 52, 10 + oy, 2, 2); R('#f59e0b', X + 52, 15 + oy, 2, 2);
+      }
+      R('#1e293b', 32, 26 + oy, 416, 2);
+      ctx.restore();
+    }
+
+    function drawLamps(par) { // near layer: moves more than the room
+      const ox = -par.x * 10;
+      [150, 330].forEach(x => {
+        const X = x + ox;
+        ctx.fillStyle = '#0b0f19'; ctx.fillRect(X - 11, 0, 22, 9);
+        ctx.fillStyle = '#374151'; ctx.fillRect(X - 9, 0, 18, 6);
+        ctx.fillStyle = '#fbbf24'; ctx.fillRect(X - 8, 8, 16, 2);
+      });
+    }
+
+    function drawLighting(par) {
+      const t = Date.now() * 0.001, g = gameState, p = g.player;
+      ctx.fillStyle = 'rgba(4,8,24,0.36)'; ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+      ctx.globalCompositeOperation = 'lighter';
+      const glow = (x, y, r, c, a) => {
+        const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+        gr.addColorStop(0, `rgba(${c},${a})`); gr.addColorStop(1, `rgba(${c},0)`);
+        ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      };
+      glow(150 - par.x * 10, 110, 120, '255,150,60', 0.30);
+      glow(330 - par.x * 10, 140, 130, '255,150,60', 0.30);
+      if (g.room === 2 && !g.coolerDone) glow(64, 96, 100, '248,70,50', 0.30 + 0.15 * Math.sin(t * 6));
+      else glow(64, 96, 90, g.room === 2 ? '74,222,128' : '56,189,248', 0.28);
+      if (g.room === 2) TABLES.forEach(tb => [16, 100].forEach((ox, i) => {
+        const bad = tb.id === 2 && i === 1 && !g.pcFixed;
+        glow(tb.x + ox + 17, tb.y, 42, bad ? '248,70,50' : '34,211,238', bad ? 0.2 + 0.1 * Math.sin(t * 12) : 0.22);
+      }));
+      glow(p.x + 12, p.y + 12, 46, '255,200,140', 0.10);
+      ctx.globalCompositeOperation = 'source-over';
+      const vg = ctx.createRadialGradient(240, 160, 120, 240, 160, 320);
+      vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.55)');
+      ctx.fillStyle = vg; ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+    }
+
     // --- RENDER PIPELINE ---
     function render() {
       ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
       ctx.save();
-      const z = camera.zoom;
+      const par = getParallax();
+      const z = camera.zoom * 1.05;
       const cx = Math.min(Math.max(camera.cx, V_WIDTH / (2 * z)), V_WIDTH - V_WIDTH / (2 * z));
       const cy = Math.min(Math.max(camera.cy, V_HEIGHT / (2 * z)), V_HEIGHT - V_HEIGHT / (2 * z));
-      ctx.setTransform(z, 0, 0, z, V_WIDTH / 2 - cx * z, V_HEIGHT / 2 - cy * z);
+      ctx.setTransform(z, 0, 0, z, V_WIDTH / 2 - cx * z - par.x * 8, V_HEIGHT / 2 - cy * z - par.y * 5);
       ctx.imageSmoothingEnabled = false;
 
 
@@ -1525,17 +1815,29 @@
           const x = c * TILE_SIZE;
           const y = r * TILE_SIZE;
           if (tile === 1) ctx.drawImage(wallImg, x, y);
-          else ctx.drawImage(floorImg, x, y);
+          else { const fv = (r * 7 + c * 13) % 3; ctx.drawImage(sprites.get('floor' + fv, (cc, w, h) => generateFloorTile(cc, w, h, fv)), x, y); }
         }
       }
 
+      drawBackWall(par);
+      drawDoor();
       // Server Rack & Repair Zone Marker
       const serverRackImg = sprites.get(
-        'server_rack_' + gameState.currentTaskIdx,
-        (c, w, h) => generateServerRack(c, w, h, gameState.currentTaskIdx),
+        'server_rack_' + ((gameState.room === 2 && !gameState.coolerDone) ? 0 : gameState.currentTaskIdx),
+        (c, w, h) => generateServerRack(c, w, h, (gameState.room === 2 && !gameState.coolerDone) ? 0 : gameState.currentTaskIdx),
         64, 128
       );
       ctx.drawImage(serverRackImg, 32, 32);
+      if (gameState.room === 2 && !gameState.coolerDone) { // overheating effect
+        const now = Date.now();
+        ctx.fillStyle = `rgba(239,68,68,${0.15 + 0.12 * Math.sin(now * 0.01)})`;
+        ctx.fillRect(32, 32, 64, 128);
+        for (let i = 0; i < 6; i++) {
+          const k = (now * 0.03 + i * 17) % 60;
+          ctx.fillStyle = `rgba(148,163,184,${0.6 - k / 100})`;
+          ctx.fillRect(40 + i * 9 + Math.sin(k * 0.3 + i) * 3, 30 - k * 0.5, 4, 4);
+        }
+      }
 
       const time = Date.now() * 0.003;
       ctx.strokeStyle = `rgba(56, 189, 248, ${0.4 + Math.sin(time) * 0.3})`;
@@ -1546,8 +1848,10 @@
 
       // Render Tables
       const benchImg = sprites.get('workbench', generateWorkbench, 160, 48);
+      const deskImg = sprites.get('desk', generateDesk, 160, 64);
       TABLES.forEach(table => {
-        ctx.drawImage(benchImg, table.x, table.y);
+        ctx.drawImage(gameState.room === 2 ? deskImg : benchImg, table.x, table.y);
+        if (gameState.room === 2) drawComputer(table);
       });
 
       // Render Items on Table Surfaces & Floor
@@ -1559,7 +1863,8 @@
 
       // Render Professor NPC
       const professorImg = sprites.get('professor', generateProfessorSprite, 32, 32);
-      const npcBob = (NPC.walking && Math.floor(Date.now() / 120) % 2) ? -1 : 0;
+      const joy = NPC.joy > 0 ? (NPC.joy--, Math.round(-Math.abs(Math.sin(Date.now() / 80)) * 6)) : 0;
+      const npcBob = ((NPC.walking && Math.floor(Date.now() / 120) % 2) ? -1 : 0) + joy;
       ctx.drawImage(professorImg, Math.round(NPC.x) - 4, Math.round(NPC.y) - 8 + npcBob);
       if (gameState.gameStarted && !gameState.dialogueOpen && !gameState.cutscene && !gameState.player.carriedItem &&
           isNearProfessor(gameState.player.x + 12, gameState.player.y + 12)) {
@@ -1615,20 +1920,34 @@
         ctx.fillRect(pt.x, pt.y, 3, 3);
       });
 
+      drawLighting(par);
+      drawLamps(par);
+      drawRoomHints();
       ctx.restore();
+      ctx.fillStyle = 'rgba(0,0,0,0.06)';
+      for (let sy = 0; sy < V_HEIGHT; sy += 2) ctx.fillRect(0, sy, V_WIDTH, 1);
       const bar = Math.round((camera.zoom - 1) * 28); // cinematic bars grow with the zoom
       if (bar > 0) {
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, V_WIDTH, bar);
         ctx.fillRect(0, V_HEIGHT - bar, V_WIDTH, bar);
       }
+      if (fadeAlpha > 0) {
+        ctx.fillStyle = 'rgba(0,0,0,' + fadeAlpha + ')'; ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+        fadeAlpha = Math.max(0, fadeAlpha - 0.03);
+      }
     }
 
     // --- UI UPDATES & PAUSE LOGIC ---
     function updateTaskUI() {
+      if (gameState.room === 2) {
+        document.getElementById('status-text').innerText =
+          'РІВЕНЬ 2: ' + ((gameState.coolerDone ? 1 : 0) + (gameState.pcFixed ? 1 : 0)) + '/2';
+        return;
+      }
       const statusText = document.getElementById('status-text');
       if (!gameState.level0Complete) {
-        const total = gameState.items.length;
+        const total = gameState.items.filter(i => !i.installed).length;
         statusText.innerText = `РІВЕНЬ 0: НА СТОЛАХ ${countItemsOnTables()}/${total}`;
         return;
       }
@@ -1665,6 +1984,10 @@
       gameState.cutscene = null;
       camera.zoom = 1; camera.cx = V_WIDTH / 2; camera.cy = V_HEIGHT / 2;
       NPC.x = NPC_HOME.x; NPC.y = NPC_HOME.y; NPC.walking = false;
+      gameState.room = 1; gameState.coolerDone = false; gameState.pcFixed = false;
+      closePc(); fadeAlpha = 0;
+      TABLES = TABLES_R1; Object.keys(roomStore).forEach(k => delete roomStore[k]);
+      gameState.bonus = 0; NPC.joy = 0; document.getElementById('bonus-chip').classList.add('hidden');
       gameState.player.x = 140;
       gameState.player.y = 150;
       gameState.player.carriedItem = null;
