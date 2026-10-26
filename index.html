@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>SERVER ROOM - Educational Game</title>
+  <title>SERVER ROOM - Retro Pixel Educational Game</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
@@ -114,6 +114,11 @@
     .pc-slot.over{border-color:#38bdf8}
     .pc-part{padding:6px 8px;border:2px solid #38bdf8;background:#1e293b;color:#f8fafc;cursor:grab;font-size:1.1rem}
     .pc-part.sel{outline:2px solid #facc15}
+    /* old beige PC monitor frame for the repair schematic */
+    .pc-monitor{background:#c7c3bb;border:3px solid #05080f;padding:10px 10px 4px;box-shadow:inset 3px 3px 0 #efede6, inset -3px -3px 0 #8f8c86}
+    .pc-screen{background:#05080f;border:3px solid #05080f;box-shadow:0 0 0 2px #8f8c86;padding:4px}
+    .pc-chin{height:12px;display:flex;justify-content:flex-end;align-items:center;padding-right:8px}
+    .pc-led{width:6px;height:3px;background:#4ade80;box-shadow:0 0 4px #4ade80}
   </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen select-none">
@@ -148,7 +153,7 @@
         <div id="status-chip" class="pixel-box px-2 py-1">
           <span id="status-text" class="pixel-font text-[9px] md:text-[10px] text-cyan-300">РІВЕНЬ 0</span>
         </div>
-        <div id="bonus-chip" class="hidden pixel-box px-2 py-1"><span id="bonus-text" class="pixel-font text-[9px] md:text-[10px] text-yellow-300">★ 0</span></div>
+        <div id="bonus-chip" class="pixel-box px-2 py-1"><span id="bonus-text" class="pixel-font text-[9px] md:text-[10px] text-yellow-300">XP: 0</span></div>
         <button id="pause-btn" class="pixel-btn pixel-font text-[10px] px-3 py-2 pointer-events-auto shrink-0 ml-2">
           [ ПАУЗА ]
         </button>
@@ -246,16 +251,21 @@
         </div>
       </div>
 
-      <!-- PC schematic -->
+      <!-- PC repair: the computer display shows a pixel schematic of the system unit (no text on the schematic) -->
       <div id="pc-modal" class="hidden absolute inset-0 bg-slate-950/95 z-30 flex flex-col items-center justify-center p-2 overflow-y-auto">
-        <div class="pixel-box p-3 w-full max-w-xl bg-slate-900 border-4 border-cyan-500 m-auto">
-          <div class="flex justify-between items-center mb-2">
-            <h3 class="pixel-font text-[10px] text-yellow-400">СХЕМА ПК</h3>
-            <button id="pc-close" class="pixel-btn pixel-font text-[9px] px-2 py-1">[ НАЗАД ]</button>
+        <div class="w-full max-w-4xl m-auto grid grid-cols-1 sm:grid-cols-[1fr_12rem] gap-3 items-center">
+          <div class="pc-monitor justify-self-center">
+            <div class="pc-screen">
+              <canvas id="pc-canvas" width="172" height="184" class="block mx-auto" style="width:min(51vh,70vw,440px);height:auto"></canvas>
+            </div>
+            <div class="pc-chin"><span class="pc-led"></span></div>
           </div>
-          <p id="pc-msg" class="retro-font text-lg text-slate-200 leading-tight mb-2 min-h-[2.5rem]"></p>
-          <div class="grid grid-cols-2 gap-3">
-            <div id="pc-board" class="grid grid-cols-2 gap-2 p-2" style="background:#14532d;border:3px solid #166534"></div>
+          <div class="pixel-box p-3 bg-slate-900 border-4 border-cyan-500 flex flex-col gap-2">
+            <div class="flex justify-between items-center gap-2">
+              <span id="pc-xp" class="pixel-font text-[9px] text-yellow-300">XP: 0</span>
+              <button id="pc-close" class="pixel-btn pixel-font text-[9px] px-2 py-1">[ НАЗАД ]</button>
+            </div>
+            <p id="pc-msg" class="retro-font text-lg text-slate-200 leading-tight min-h-[2.5rem]"></p>
             <div id="pc-tray" class="flex flex-col gap-2"></div>
           </div>
         </div>
@@ -277,6 +287,10 @@
             <div class="flex justify-between retro-font text-lg">
               <span class="text-gray-400">Помилкових спроб:</span>
               <span id="stat-errors" class="text-amber-400 font-bold">0</span>
+            </div>
+            <div class="flex justify-between retro-font text-lg">
+              <span class="text-gray-400">Досвід (XP):</span>
+              <span id="stat-xp" class="text-yellow-300 font-bold">0</span>
             </div>
             <hr class="border-slate-800 my-1">
             <div class="retro-font text-base text-emerald-300">
@@ -626,79 +640,79 @@
       const swing = frame === 1 ? 1 : (frame === 3 ? -1 : 0);
       const side = (dir === 'left' || dir === 'right');
 
-      // legs and boots
-      const drawLeg = (x, lift) => {
-        drawPixelRect(ctx, '#1e40af', x, py + 16, 4, 6 - lift);
+      // legs and boots (slim)
+      const drawLeg = (x, lift, bx) => {
+        drawPixelRect(ctx, '#1e40af', x, py + 16, 3, 6 - lift);
         drawPixelRect(ctx, '#3b82f6', x, py + 16, 1, 6 - lift);
-        drawPixelRect(ctx, '#111827', x - 1, py + 22 - lift, 6, 4);
-        drawPixelRect(ctx, '#4b5563', x - 1, py + 22 - lift, 6, 1);
+        drawPixelRect(ctx, '#111827', bx, py + 22 - lift, 4, 4);
+        drawPixelRect(ctx, '#4b5563', bx, py + 22 - lift, 4, 1);
       };
       if (side) {
-        drawLeg(12 - swing * 2, 0);
-        drawLeg(16 + swing * 2, 0);
+        drawLeg(12 - swing * 2, 0, 11 - swing * 2);
+        drawLeg(16 + swing * 2, 0, 15 + swing * 2);
       } else {
-        drawLeg(11, swing === 1 ? 1 : 0);
-        drawLeg(17, swing === -1 ? 1 : 0);
+        drawLeg(12, swing === 1 ? 1 : 0, 11);
+        drawLeg(17, swing === -1 ? 1 : 0, 17);
       }
 
       // torso: shirt + safety vest
-      drawPixelRect(ctx, '#1d4ed8', 9, py + 9, 14, 9);
-      drawPixelRect(ctx, '#f97316', 10, py + 9, 12, 9);
-      drawPixelRect(ctx, '#fb923c', 10, py + 9, 12, 1);
-      drawPixelRect(ctx, '#c2410c', 10, py + 17, 12, 1);
-      drawPixelRect(ctx, '#fde047', 10, py + 13, 12, 2);
+      drawPixelRect(ctx, '#1d4ed8', 11, py + 9, 10, 9);
+      drawPixelRect(ctx, '#f97316', 12, py + 9, 8, 9);
+      drawPixelRect(ctx, '#fb923c', 12, py + 9, 8, 1);
+      drawPixelRect(ctx, '#c2410c', 12, py + 17, 8, 1);
+      drawPixelRect(ctx, '#fde047', 12, py + 13, 8, 2);
       if (dir === 'down') {
         drawPixelRect(ctx, '#9a3412', 15, py + 10, 2, 7);
       } else if (dir === 'up') {
         drawPixelRect(ctx, '#fde047', 15, py + 10, 2, 7);
       }
       // tool belt
-      drawPixelRect(ctx, '#78350f', 9, py + 17, 14, 2);
+      drawPixelRect(ctx, '#78350f', 11, py + 17, 10, 2);
       drawPixelRect(ctx, '#facc15', 15, py + 17, 2, 2);
 
       // arms
       if (side) {
-        drawPixelRect(ctx, '#2563eb', 14, py + 10 + swing, 4, 6);
-        drawPixelRect(ctx, '#fcd5b5', 14, py + 16 + swing, 4, 2);
+        drawPixelRect(ctx, '#2563eb', 14, py + 10 + swing, 3, 6);
+        drawPixelRect(ctx, '#fcd5b5', 14, py + 16 + swing, 3, 2);
       } else {
         const la = swing === 1 ? -1 : (swing === -1 ? 1 : 0);
-        drawPixelRect(ctx, '#1d4ed8', 7, py + 9 + la, 2, 6);
-        drawPixelRect(ctx, '#1d4ed8', 23, py + 9 - la, 2, 6);
-        drawPixelRect(ctx, '#fcd5b5', 7, py + 15 + la, 2, 3);
-        drawPixelRect(ctx, '#fcd5b5', 23, py + 15 - la, 2, 3);
+        drawPixelRect(ctx, '#1d4ed8', 9, py + 9 + la, 2, 6);
+        drawPixelRect(ctx, '#1d4ed8', 21, py + 9 - la, 2, 6);
+        drawPixelRect(ctx, '#fcd5b5', 9, py + 15 + la, 2, 3);
+        drawPixelRect(ctx, '#fcd5b5', 21, py + 15 - la, 2, 3);
       }
 
-      // head
-      drawPixelRect(ctx, '#fcd5b5', 10, py + 2, 12, 8);
+      // head (slim)
+      drawPixelRect(ctx, '#fcd5b5', 11, py + 2, 10, 8);
       if (dir === 'up') {
-        drawPixelRect(ctx, '#0284c7', 9, py, 14, 8);
-        drawPixelRect(ctx, '#38bdf8', 10, py, 12, 1);
+        drawPixelRect(ctx, '#0284c7', 10, py, 12, 8);
+        drawPixelRect(ctx, '#38bdf8', 11, py, 10, 1);
         drawPixelRect(ctx, '#075985', 13, py + 6, 6, 1);
         drawPixelRect(ctx, '#fcd5b5', 13, py + 8, 6, 2);
       } else {
-        drawPixelRect(ctx, '#0284c7', 9, py, 14, 4);
-        drawPixelRect(ctx, '#38bdf8', 10, py, 12, 1);
+        drawPixelRect(ctx, '#0284c7', 10, py, 12, 4);
+        drawPixelRect(ctx, '#38bdf8', 11, py, 10, 1);
         if (dir === 'down') {
-          drawPixelRect(ctx, '#075985', 10, py + 3, 12, 1);
-          drawPixelRect(ctx, '#fcd5b5', 9, py + 5, 1, 3);
-          drawPixelRect(ctx, '#fcd5b5', 22, py + 5, 1, 3);
-          drawPixelRect(ctx, '#1e1b4b', 12, py + 5, 2, 2);
-          drawPixelRect(ctx, '#1e1b4b', 18, py + 5, 2, 2);
-          drawPixelRect(ctx, '#f8fafc', 12, py + 5, 1, 1);
-          drawPixelRect(ctx, '#f8fafc', 18, py + 5, 1, 1);
+          drawPixelRect(ctx, '#075985', 11, py + 3, 10, 1);
+          drawPixelRect(ctx, '#fcd5b5', 10, py + 5, 1, 3);
+          drawPixelRect(ctx, '#fcd5b5', 21, py + 5, 1, 3);
+          drawPixelRect(ctx, '#1e1b4b', 13, py + 5, 2, 2);
+          drawPixelRect(ctx, '#1e1b4b', 17, py + 5, 2, 2);
+          drawPixelRect(ctx, '#f8fafc', 13, py + 5, 1, 1);
+          drawPixelRect(ctx, '#f8fafc', 17, py + 5, 1, 1);
           drawPixelRect(ctx, '#b91c1c', 14, py + 8, 4, 1);
         } else if (dir === 'left') {
-          drawPixelRect(ctx, '#075985', 6, py + 3, 7, 1);
-          drawPixelRect(ctx, '#0284c7', 17, py + 4, 5, 4);
-          drawPixelRect(ctx, '#1e1b4b', 11, py + 5, 2, 2);
-          drawPixelRect(ctx, '#f8fafc', 11, py + 5, 1, 1);
-          drawPixelRect(ctx, '#b91c1c', 10, py + 8, 2, 1);
+          drawPixelRect(ctx, '#075985', 7, py + 3, 6, 1);
+          drawPixelRect(ctx, '#0284c7', 16, py + 4, 5, 4);
+          drawPixelRect(ctx, '#1e1b4b', 12, py + 5, 2, 2);
+          drawPixelRect(ctx, '#f8fafc', 12, py + 5, 1, 1);
+          drawPixelRect(ctx, '#b91c1c', 11, py + 8, 2, 1);
         } else {
-          drawPixelRect(ctx, '#075985', 19, py + 3, 7, 1);
-          drawPixelRect(ctx, '#0284c7', 10, py + 4, 5, 4);
-          drawPixelRect(ctx, '#1e1b4b', 19, py + 5, 2, 2);
-          drawPixelRect(ctx, '#f8fafc', 19, py + 5, 1, 1);
-          drawPixelRect(ctx, '#b91c1c', 20, py + 8, 2, 1);
+          drawPixelRect(ctx, '#075985', 19, py + 3, 6, 1);
+          drawPixelRect(ctx, '#0284c7', 11, py + 4, 5, 4);
+          drawPixelRect(ctx, '#1e1b4b', 18, py + 5, 2, 2);
+          drawPixelRect(ctx, '#f8fafc', 18, py + 5, 1, 1);
+          drawPixelRect(ctx, '#b91c1c', 19, py + 8, 2, 1);
         }
       }
     }
@@ -712,24 +726,24 @@
     function drawProfessorBody(ctx, w, h) {
       const py = 2;
 
-      drawPixelRect(ctx, '#111827', 10, py + 22, 5, 4);
-      drawPixelRect(ctx, '#111827', 17, py + 22, 5, 4);
-      drawPixelRect(ctx, '#374151', 11, py + 16, 4, 6);
-      drawPixelRect(ctx, '#374151', 17, py + 16, 4, 6);
-      // lab coat
-      drawPixelRect(ctx, '#e5e7eb', 8, py + 9, 16, 9);
+      drawPixelRect(ctx, '#111827', 11, py + 22, 4, 4);
+      drawPixelRect(ctx, '#111827', 17, py + 22, 4, 4);
+      drawPixelRect(ctx, '#374151', 12, py + 16, 3, 6);
+      drawPixelRect(ctx, '#374151', 17, py + 16, 3, 6);
+      // lab coat (slim)
+      drawPixelRect(ctx, '#e5e7eb', 10, py + 9, 12, 9);
       drawPixelRect(ctx, '#cbd5e1', 15, py + 10, 2, 8);
-      drawPixelRect(ctx, '#94a3b8', 10, py + 13, 3, 2);
-      drawPixelRect(ctx, '#e5e7eb', 6, py + 9, 2, 6);
-      drawPixelRect(ctx, '#e5e7eb', 24, py + 9, 2, 6);
-      drawPixelRect(ctx, '#fcd5b5', 6, py + 15, 2, 3);
-      drawPixelRect(ctx, '#fcd5b5', 24, py + 15, 2, 3);
+      drawPixelRect(ctx, '#94a3b8', 11, py + 13, 3, 2);
+      drawPixelRect(ctx, '#e5e7eb', 8, py + 9, 2, 6);
+      drawPixelRect(ctx, '#e5e7eb', 22, py + 9, 2, 6);
+      drawPixelRect(ctx, '#fcd5b5', 8, py + 15, 2, 3);
+      drawPixelRect(ctx, '#fcd5b5', 22, py + 15, 2, 3);
       // head
-      drawPixelRect(ctx, '#fcd5b5', 10, py + 2, 12, 8);
+      drawPixelRect(ctx, '#fcd5b5', 11, py + 2, 10, 8);
       // grey hair
-      drawPixelRect(ctx, '#9ca3af', 9, py, 14, 3);
-      drawPixelRect(ctx, '#9ca3af', 9, py + 2, 2, 4);
-      drawPixelRect(ctx, '#9ca3af', 21, py + 2, 2, 4);
+      drawPixelRect(ctx, '#9ca3af', 10, py, 12, 3);
+      drawPixelRect(ctx, '#9ca3af', 10, py + 2, 2, 4);
+      drawPixelRect(ctx, '#9ca3af', 20, py + 2, 2, 4);
       // glasses
       drawPixelRect(ctx, '#1e1b4b', 11, py + 4, 4, 3);
       drawPixelRect(ctx, '#1e1b4b', 17, py + 4, 4, 3);
@@ -737,10 +751,10 @@
       drawPixelRect(ctx, '#bae6fd', 12, py + 5, 2, 1);
       drawPixelRect(ctx, '#bae6fd', 18, py + 5, 2, 1);
       // big moustache
-      drawPixelRect(ctx, '#f3f4f6', 11, py + 7, 10, 2);
-      drawPixelRect(ctx, '#f3f4f6', 10, py + 8, 2, 2);
-      drawPixelRect(ctx, '#f3f4f6', 20, py + 8, 2, 2);
-      drawPixelRect(ctx, '#9ca3af', 12, py + 9, 8, 1);
+      drawPixelRect(ctx, '#f3f4f6', 12, py + 7, 8, 2);
+      drawPixelRect(ctx, '#f3f4f6', 11, py + 8, 2, 2);
+      drawPixelRect(ctx, '#f3f4f6', 19, py + 8, 2, 2);
+      drawPixelRect(ctx, '#9ca3af', 13, py + 9, 6, 1);
     }
 
     function generateProfessorSprite(ctx, w, h) {
@@ -827,6 +841,20 @@
           R('#eab308', 18, 7, 1, 2);
           R('#eab308', 20, 7, 1, 2);
           R('#2563eb', 17, 10, 3, 2);
+          break;
+        case 'cpu':
+          R('#475569', 3, 3, 18, 18);
+          R('#94a3b8', 3, 3, 18, 1);
+          R('#94a3b8', 3, 3, 1, 18);
+          R('#cbd5e1', 6, 6, 12, 12);
+          R('#e2e8f0', 6, 6, 12, 1);
+          R('#94a3b8', 8, 10, 8, 1);
+          R('#94a3b8', 8, 13, 5, 1);
+          R('#facc15', 3, 3, 3, 3);
+          for (let i = 0; i < 5; i++) {
+            R('#eab308', 5 + i * 3, 1, 1, 2); R('#eab308', 5 + i * 3, 21, 1, 2);
+            R('#eab308', 1, 5 + i * 3, 2, 1); R('#eab308', 21, 5 + i * 3, 2, 1);
+          }
           break;
         case 'cooler':
           R('#64748b', 2, 2, 20, 20);
@@ -935,18 +963,19 @@
     canvas.width = V_WIDTH;
     canvas.height = V_HEIGHT;
 
-    const MAP = [
-      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-      [1,2,2,0,0,0,0,0,0,0,0,0,0,0,1],
-      [1,2,2,0,0,0,0,0,0,0,0,0,0,0,1],
-      [1,2,2,0,0,0,0,0,0,0,0,0,0,0,1],
-      [1,2,2,0,0,0,0,0,0,0,0,0,0,0,1],
-      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-    ];
+    // Room size: +20% (15x10 tiles -> 18x12). Everything that was already in the room keeps
+    // its size and its coordinates; the extra floor is added to the right and to the bottom.
+    const ROOM_SCALE = 1.2;
+    const MAP_COLS = Math.round(15 * ROOM_SCALE);
+    const MAP_ROWS = Math.round(10 * ROOM_SCALE);
+    const ROOM_W = MAP_COLS * TILE_SIZE;
+    const ROOM_H = MAP_ROWS * TILE_SIZE;
+
+    const MAP = Array.from({ length: MAP_ROWS }, (_, r) => Array.from({ length: MAP_COLS }, (_, c) => {
+      if (r === 0 || r === MAP_ROWS - 1 || c === 0 || c === MAP_COLS - 1) return 1; // walls
+      if (r >= 1 && r <= 4 && (c === 1 || c === 2)) return 2;                      // server rack
+      return 0;
+    }));
 
     let TABLES = [
       { id: 1, x: 250, y: 48,  w: 160, h: 48 },
@@ -994,6 +1023,44 @@
     function updateParticles() {
       for (const q of gameState.particles) { q.x += q.vx; q.y += q.vy; q.life--; }
       gameState.particles = gameState.particles.filter(q => q.life > 0);
+      for (const f of gameState.floaters) { f.y -= 0.4; f.life--; }
+      gameState.floaters = gameState.floaters.filter(f => f.life > 0);
+    }
+
+    // --- XP ECONOMY ---
+    const XP_RULES = {
+      levelComplete: 10,  // every successfully completed level / stage
+      coffee: 50,         // a cup of coffee
+      mistake: -10        // a failure or an incorrect action
+    };
+    const XP_ALLOW_NEGATIVE = false; // true = XP may drop below zero
+
+    function updateXpChip() {
+      const t = 'XP: ' + gameState.xp;
+      document.getElementById('bonus-text').innerText = t;
+      const pcXp = document.getElementById('pc-xp');
+      if (pcXp) pcXp.innerText = t;
+    }
+
+    function addXp(delta) {
+      const g = gameState, p = g.player;
+      g.xp = XP_ALLOW_NEGATIVE ? g.xp + delta : Math.max(0, g.xp + delta);
+      updateXpChip();
+      const chip = document.getElementById('bonus-text');
+      chip.style.color = delta > 0 ? '#6ee7b7' : '#f87171';
+      setTimeout(() => { chip.style.color = ''; }, 700);
+      g.floaters.push({ text: (delta > 0 ? '+' : '') + delta + ' XP', x: p.x + 12, y: p.y - 6, life: 70, color: delta > 0 ? '#4ade80' : '#f87171' });
+    }
+
+    function drawFloaters() {
+      ctx.font = '8px "Press Start 2P", cursive';
+      gameState.floaters.forEach(f => {
+        const w = ctx.measureText(f.text).width;
+        ctx.globalAlpha = Math.min(1, f.life / 20);
+        ctx.fillStyle = '#000'; ctx.fillText(f.text, f.x - w / 2 + 1, f.y + 1);
+        ctx.fillStyle = f.color; ctx.fillText(f.text, f.x - w / 2, f.y);
+      });
+      ctx.globalAlpha = 1;
     }
 
     function stepNpcToward(tx, ty, speed) {
@@ -1052,7 +1119,7 @@
           showDialogue(c.lines[0], 'РІВЕНЬ 1: ПРОЙДЕНО');
         }
       } else if (c.phase === 'return') {
-        tz = 1; tcx = V_WIDTH / 2; tcy = V_HEIGHT / 2;
+        tz = 1; tcx = gameState.player.x + 12; tcy = gameState.player.y + 12;
         NPC.walking = true;
         if (c.stage === 0) {
           if (stepNpcToward(c.target.x, NPC_HOME.y, 1.8)) c.stage = 1;
@@ -1061,7 +1128,7 @@
         }
         if (c.stage === 2 && Math.abs(camera.zoom - 1) < 0.02) {
           NPC.walking = false;
-          camera.zoom = 1; camera.cx = V_WIDTH / 2; camera.cy = V_HEIGHT / 2;
+          camera.zoom = 1; followCamera(true);
           gameState.cutscene = null; document.getElementById('game-hud').classList.remove('invisible'); updateTaskUI();
           return;
         }
@@ -1090,7 +1157,7 @@
       completed: false,
       level0Complete: false,
       dialogueOpen: false,
-      cutscene: null, room: 1, coolerDone: false, pcFixed: false, pcOpen: false, bonus: 0,
+      cutscene: null, room: 1, coolerDone: false, pcFixed: false, pcOpen: false, xp: 0, floaters: [],
       player: {
         x: 140,
         y: 150,
@@ -1207,7 +1274,7 @@
     function checkMapCollision(x, y) {
       const col = Math.floor(x / TILE_SIZE);
       const row = Math.floor(y / TILE_SIZE);
-      if (col < 0 || col >= 15 || row < 0 || row >= 10) return true;
+      if (col < 0 || col >= MAP_COLS || row < 0 || row >= MAP_ROWS) return true;
       const tile = MAP[row][col];
       return tile === 1 || tile === 2;
     }
@@ -1399,6 +1466,7 @@
 
     function completeLevel0() {
       gameState.level0Complete = true;
+      addXp(XP_RULES.levelComplete);
       sound.playSuccess();
       spawnParticles(gameState.player.x + 12, gameState.player.y + 12, '#38bdf8');
       showDialogue("Підготовку завершено! " + TASKS_DATA[0].desc, getLevelLabel());
@@ -1415,6 +1483,7 @@
         gameState.player.carriedItem = null;
 
         spawnParticles(120, 120, '#10b981');
+        addXp(XP_RULES.levelComplete);
 
         gameState.currentTaskIdx++;
         if (gameState.currentTaskIdx >= TASKS_DATA.length) {
@@ -1427,6 +1496,7 @@
       } else {
         sound.playError();
         gameState.incorrectAttempts++;
+        addXp(XP_RULES.mistake);
         spawnParticles(120, 120, '#ef4444');
         let msg = DISTRACTOR_FEEDBACK[item.type] || "Ця деталь не підходить.";
         showFeedback("Не той компонент!", msg);
@@ -1549,7 +1619,17 @@
         p.frame = 0;
       }
 
+      followCamera(false);
       updateParticles();
+    }
+
+    // The room is larger than the screen now: the camera keeps the same distance (zoom)
+    // and simply follows the player; render() clamps it to the room borders.
+    function followCamera(snap) {
+      const p = gameState.player, tx = p.x + p.w / 2, ty = p.y + p.h / 2;
+      if (snap) { camera.cx = tx; camera.cy = ty; return; }
+      camera.cx += (tx - camera.cx) * 0.12;
+      camera.cy += (ty - camera.cy) * 0.12;
     }
 
     // --- LEVEL 2: DOOR, ROOM, PC SCHEMATIC ---
@@ -1572,7 +1652,7 @@
       if (carried) g.items = g.items.filter(i => i !== carried);
       roomStore[g.room] = { items: g.items, slots: tableSlots };
       g.room = n; TABLES = (n === 2) ? TABLES_R2 : TABLES_R1;
-      p.x = 44; p.y = 216; p.dir = 'right';
+      p.x = 44; p.y = 216; p.dir = 'right'; followCamera(true);
       if (n === 1) { NPC.x = NPC_HOME.x; NPC.y = NPC_HOME.y; } else { NPC.x = -200; NPC.y = -200; }
       const saved = roomStore[n];
       if (saved) { g.items = saved.items; tableSlots = saved.slots; }
@@ -1590,12 +1670,10 @@
 
     function giveCoffee() {
       const p = gameState.player;
-      p.carriedItem.installed = true; p.carriedItem = null; gameState.bonus += 50;
+      p.carriedItem.installed = true; p.carriedItem = null; addXp(XP_RULES.coffee);
       sound.playSuccess(); NPC.joy = 90;
       spawnParticles(NPC.x + 12, NPC.y, '#facc15'); spawnParticles(NPC.x + 12, NPC.y, '#f472b6');
-      document.getElementById('bonus-chip').classList.remove('hidden');
-      document.getElementById('bonus-text').innerText = '★ ' + gameState.bonus;
-      showDialogue("Кавуся! Ви рятівник! +50 ★", getLevelLabel());
+      showDialogue("Кавуся! Ви рятівник! +" + XP_RULES.coffee + " XP", getLevelLabel());
     }
 
     function generateDesk(ctx, w, h) {
@@ -1612,6 +1690,7 @@
     function afterRoom2Step(text) {
       updateTaskUI();
       const done = gameState.coolerDone && gameState.pcFixed;
+      if (done) addXp(XP_RULES.levelComplete);
       showDialogue(text + (done ? " Рівень 2 пройдено!" : ""),
                    done ? 'РІВЕНЬ 2: ПРОЙДЕНО' : 'РІВЕНЬ 2');
     }
@@ -1622,40 +1701,214 @@
         gameState.coolerDone = true; spawnParticles(64, 96, '#38bdf8');
         afterRoom2Step("Кулер встановлено: сервер охолоджено.");
       } else {
-        sound.playError(); gameState.incorrectAttempts++; spawnParticles(120, 120, '#ef4444');
+        sound.playError(); gameState.incorrectAttempts++; addXp(XP_RULES.mistake); spawnParticles(120, 120, '#ef4444');
         showFeedback("Не той компонент!", DISTRACTOR_FEEDBACK[item.type] || "Це не охолоджує сервер.");
       }
     }
 
+    // --- PC REPAIR: schematic of the system unit (drawn on a canvas, the schematic has no text) ---
     const PC_PARTS = {
-      cpu: { name: 'Процесор (CPU)', slot: 'Сокет процесора', cls: 'col-start-1 row-start-1 h-20',
+      cpu: { name: 'Процесор (CPU)',
              hint: 'Процесор — «мозок» ПК: виконує команди програм і керує обчисленнями.' },
-      ram: { name: 'Модуль ОЗП (RAM)', slot: 'Слот DIMM', cls: 'col-start-2 row-start-1 h-20',
+      ram: { name: 'Модуль ОЗП (RAM)',
              hint: 'ОЗП тимчасово зберігає дані запущених програм і дає процесору швидкий доступ до них.' },
-      gpu: { name: 'Відеокарта (GPU)', slot: 'Слот PCIe x16', cls: 'col-span-2 row-start-2 h-12',
+      gpu: { name: 'Відеокарта (GPU)',
              hint: 'Відеокарта формує зображення й швидко виконує паралельні обчислення.' }
     };
 
-    function renderPc() {
-      const board = document.getElementById('pc-board'), tray = document.getElementById('pc-tray');
-      board.innerHTML = ''; tray.innerHTML = '';
-      Object.entries(PC_PARTS).forEach(([k, d]) => {
-        const s = document.createElement('div');
-        s.className = 'pc-slot retro-font ' + d.cls + (pcState.placed[k] ? ' ok' : '');
-        s.textContent = pcState.placed[k] ? '✓ ' + d.name : d.slot;
-        s.onclick = () => placePc(k);
-        s.ondragover = e => { e.preventDefault(); s.classList.add('over'); };
-        s.ondragleave = () => s.classList.remove('over');
-        s.ondrop = e => { e.preventDefault(); pcState.selected = e.dataTransfer.getData('text') || pcState.selected; placePc(k); };
-        board.appendChild(s);
-        if (!pcState.placed[k]) {
-          const el = document.createElement('div');
-          el.className = 'pc-part retro-font' + (pcState.selected === k ? ' sel' : '');
-          el.textContent = d.name; el.draggable = true;
-          el.onclick = () => { pcState.selected = k; renderPc(); };
-          el.ondragstart = e => { pcState.selected = k; e.dataTransfer.setData('text', k); };
-          tray.appendChild(el);
+    const PC_W = 172, PC_H = 184;
+    const PC_CASE_L = { x: 6, y: 6 };     // the PC being repaired (only the motherboard at the start)
+    const PC_ZONES = {                    // clickable areas, relative to a case
+      cpu: { x: 42, y: 28, w: 36, h: 36 },
+      ram: { x: 82, y: 20, w: 28, h: 48 },
+      gpu: { x: 14, y: 68, w: 98, h: 46 }
+    };
+
+    function drawPcCase(c, ox, oy, placed, ui) {
+      const t = Date.now();
+      const R = (col, x, y, w, h) => { c.fillStyle = col; c.fillRect(ox + x, oy + y, w, h); };
+      const D = (col, cx, cy, r) => { // pixel disc
+        for (let y = -r; y <= r; y++) {
+          const hw = Math.floor(Math.sqrt(Math.max(0, r * r + r * 0.5 - y * y)));
+          R(col, cx - hw, cy + y, hw * 2 + 1, 1);
         }
+      };
+      const blades = (col, cx, cy, n, r0, r1, speed) => {
+        for (let b = 0; b < n; b++) {
+          const a = t * speed + b * Math.PI * 2 / n;
+          for (let r = r0; r <= r1; r++) {
+            const px = Math.round(cx + Math.cos(a) * r), py = Math.round(cy + Math.sin(a) * r);
+            R(col, px, py, 2, 1);
+          }
+        }
+      };
+
+      // feet and shell
+      R('#05080f', 10, 164, 34, 8); R('#2a3344', 11, 164, 32, 6);
+      R('#05080f', 116, 164, 34, 8); R('#2a3344', 117, 164, 32, 6);
+      R('#05080f', 0, 0, 160, 168); R('#475467', 1, 1, 158, 166);
+      R('#6b7a90', 1, 1, 158, 2); R('#6b7a90', 1, 1, 2, 166);
+      R('#2a3344', 1, 165, 158, 2); R('#2a3344', 157, 1, 2, 166);
+      // glass window
+      R('#05080f', 6, 7, 148, 152); R('#202838', 7, 8, 146, 150);
+      for (let i = 0; i < 60; i++) R('#283246', 40 + i, 8 + i, 3, 1);
+      for (let i = 0; i < 40; i++) R('#283246', 90 + i, 8 + i, 2, 1);
+      // top vents
+      R('#0f1520', 12, 11, 34, 6); for (let i = 0; i < 8; i++) R('#2f3b52', 14 + i * 4, 12, 2, 4);
+      R('#0f1520', 118, 11, 30, 4);
+      // rear expansion brackets
+      for (let i = 0; i < 5; i++) { R('#0f1520', 9, 74 + i * 8, 6, 6); R('#3a4659', 10, 75 + i * 8, 4, 1); }
+      // drive cages (right)
+      R('#171e2d', 116, 20, 34, 100);
+      for (let i = 0; i < 3; i++) {
+        const y = 24 + i * 32;
+        R('#0b111c', 120, y, 26, 26); R('#2f3b52', 121, y + 1, 24, 1); R('#475467', 124, y + 11, 18, 3);
+      }
+      // PSU shroud
+      R('#2a3344', 7, 124, 146, 3); R('#161d2b', 7, 127, 146, 31);
+      R('#05080f', 12, 131, 66, 23); R('#111827', 13, 132, 64, 21); R('#1f2937', 13, 132, 64, 2);
+      D('#05080f', 32, 143, 8); D('#1f2937', 32, 143, 7);
+      R('#374151', 26, 143, 13, 1); R('#374151', 32, 137, 1, 13); D('#475569', 32, 143, 1);
+      R('#374151', 46, 136, 26, 3); R('#374151', 46, 141, 18, 2); R('#eab308', 46, 146, 10, 3);
+      R('#05080f', 78, 140, 13, 3); R('#05080f', 90, 124, 3, 19);
+      R('#0b111c', 104, 131, 44, 9); R('#0b111c', 104, 143, 44, 9);
+      R('#2f3b52', 104, 131, 44, 1); R('#2f3b52', 104, 143, 44, 1);
+
+      // motherboard
+      R('#05080f', 24, 16, 90, 108); R('#15803d', 25, 17, 88, 106);
+      R('#22c55e', 25, 17, 88, 1); R('#22c55e', 25, 17, 1, 106);
+      R('#14532d', 25, 122, 88, 1); R('#14532d', 112, 17, 1, 106);
+      for (let i = 0; i < 5; i++) R('#166534', 28, 66 + i * 3, 82, 1);
+      R('#166534', 80, 20, 1, 44); R('#166534', 110, 70, 1, 50);
+      [[28, 20], [108, 20], [28, 118], [108, 118]].forEach(([sx, sy]) => { R('#0b1220', sx, sy, 3, 3); R('#94a3b8', sx + 1, sy + 1, 1, 1); });
+      // I/O ports
+      R('#05080f', 12, 20, 14, 46);
+      for (let i = 0; i < 5; i++) { R('#94a3b8', 13, 22 + i * 9, 12, 7); R('#475569', 14, 23 + i * 9, 10, 5); }
+      // VRM heatsink, capacitors, chipset, battery, SATA
+      R('#05080f', 30, 18, 46, 9); R('#94a3b8', 31, 19, 44, 7);
+      for (let i = 0; i < 11; i++) R('#64748b', 33 + i * 4, 19, 1, 7);
+      for (let i = 0; i < 4; i++) { R('#0b1220', 30, 32 + i * 7, 8, 5); R('#cbd5e1', 31, 33 + i * 7, 2, 3); }
+      R('#05080f', 88, 70, 18, 12); R('#94a3b8', 89, 71, 16, 10); R('#64748b', 92, 72, 1, 8); R('#64748b', 97, 72, 1, 8);
+      D('#05080f', 102, 102, 5); D('#cbd5e1', 102, 102, 4); D('#94a3b8', 103, 103, 2);
+      R('#0b1220', 96, 114, 14, 4);
+
+      // PCIe slots
+      for (let i = 0; i < 3; i++) {
+        const y = 80 + i * 14;
+        R('#05080f', 30, y, 66, 6); R('#1a2438', 31, y + 1, 64, 4);
+        for (let k = 0; k < 30; k++) R('#334155', 33 + k * 2, y + 2, 1, 2);
+        R('#64748b', 94, y, 3, 6);
+      }
+
+      // CPU socket + cooler
+      if (placed.cpu) {
+        R('#05080f', 40, 26, 40, 40); R('#334155', 41, 27, 38, 38); R('#475569', 41, 27, 38, 1);
+        D('#05080f', 60, 46, 16); D('#0f172a', 60, 46, 15);
+        blades('#38bdf8', 60, 46, 3, 4, 13, 0.006); blades('#475569', 60, 46, 3, 4, 13, 0.006);
+        D('#e2e8f0', 60, 46, 3); D('#475569', 60, 46, 1);
+        [[42, 28], [76, 28], [42, 62], [76, 62]].forEach(([sx, sy]) => R('#94a3b8', sx, sy, 2, 2));
+      } else {
+        R('#05080f', 44, 30, 32, 32); R('#2a3446', 45, 31, 30, 30);
+        for (let ix = 0; ix < 6; ix++) for (let iy = 0; iy < 6; iy++) R('#64748b', 48 + ix * 4, 34 + iy * 4, 1, 1);
+        R('#94a3b8', 44, 30, 32, 1); R('#facc15', 46, 32, 3, 3);
+      }
+
+      // RAM bank
+      R('#05080f', 82, 20, 28, 48); R('#1a2438', 83, 21, 26, 46);
+      for (let i = 0; i < 4; i++) {
+        const sx = 84 + i * 6, stick = placed.ram && (i === 0 || i === 2);
+        R('#0b1220', sx, 23, 4, 42);
+        R('#64748b', sx, 21, 4, 2); R('#64748b', sx, 65, 4, 2);
+        if (stick) {
+          R('#166534', sx, 23, 4, 42); R('#4ade80', sx, 23, 4, 1);
+          for (let k = 0; k < 4; k++) R('#0b1220', sx + 1, 27 + k * 9, 2, 6);
+          R('#eab308', sx, 61, 4, 4);
+        }
+      }
+
+      // GPU card
+      if (placed.gpu) {
+        R('#05080f', 12, 68, 102, 26); R('#1f2937', 13, 69, 100, 24); R('#374151', 13, 69, 100, 1);
+        R('#cbd5e1', 10, 70, 6, 22); R('#f1f5f9', 10, 70, 1, 22);
+        R('#22d3ee', 18, 71, 92, 1);
+        [40, 84].forEach(fx => {
+          D('#05080f', fx, 82, 9); D('#0f172a', fx, 82, 8);
+          blades('#64748b', fx, 82, 5, 2, 7, -0.008);
+          D('#94a3b8', fx, 82, 2);
+        });
+        R('#0b1220', 100, 72, 10, 18); R('#05080f', 106, 70, 8, 5);
+        R('#eab308', 30, 94, 40, 1);
+      }
+
+      // hints for the interactive case: dashed frames around the empty slots
+      if (ui) {
+        const off = Math.floor(t / 90) % 6;
+        const dash = (z, col) => {
+          for (let i = 0; i < z.w; i++) if ((i + off) % 6 < 3) { R(col, z.x + i, z.y, 1, 1); R(col, z.x + i, z.y + z.h - 1, 1, 1); }
+          for (let i = 0; i < z.h; i++) if ((i + off) % 6 < 3) { R(col, z.x, z.y + i, 1, 1); R(col, z.x + z.w - 1, z.y + i, 1, 1); }
+        };
+        Object.entries(PC_ZONES).forEach(([k, z]) => {
+          if (placed[k]) return;
+          if (ui.flashZone === k && t < ui.flashUntil) { c.globalAlpha = 0.4; R('#ef4444', z.x, z.y, z.w, z.h); c.globalAlpha = 1; dash(z, '#ef4444'); return; }
+          if (ui.hover === k && ui.selected) { c.globalAlpha = 0.22; R('#facc15', z.x, z.y, z.w, z.h); c.globalAlpha = 1; dash(z, '#facc15'); return; }
+          dash(z, ui.selected ? '#38bdf8' : '#64748b');
+        });
+      }
+    }
+
+    function drawPcCanvas() {
+      const cv = document.getElementById('pc-canvas'), c = cv.getContext('2d');
+      c.imageSmoothingEnabled = false;
+      c.fillStyle = '#05080f'; c.fillRect(0, 0, PC_W, PC_H);
+      c.fillStyle = '#0b1424';
+      for (let x = 0; x < PC_W; x += 8) c.fillRect(x, 0, 1, PC_H);
+      for (let y = 0; y < PC_H; y += 8) c.fillRect(0, y, PC_W, 1);
+      drawPcCase(c, PC_CASE_L.x, PC_CASE_L.y, pcState.placed, pcState);
+    }
+
+    function pcZoneAt(e) {
+      const cv = document.getElementById('pc-canvas'), r = cv.getBoundingClientRect();
+      const x = (e.clientX - r.left) * PC_W / r.width - PC_CASE_L.x;
+      const y = (e.clientY - r.top) * PC_H / r.height - PC_CASE_L.y;
+      for (const [k, z] of Object.entries(PC_ZONES)) {
+        if (x >= z.x && x < z.x + z.w && y >= z.y && y < z.y + z.h) return k;
+      }
+      return null;
+    }
+
+    (function bindPcCanvas() {
+      const cv = document.getElementById('pc-canvas');
+      cv.addEventListener('click', e => { const k = pcZoneAt(e); if (k) placePc(k); });
+      cv.addEventListener('mousemove', e => { pcState.hover = pcZoneAt(e); });
+      cv.addEventListener('mouseleave', () => { pcState.hover = null; });
+      cv.addEventListener('dragover', e => { e.preventDefault(); pcState.hover = pcZoneAt(e); });
+      cv.addEventListener('dragleave', () => { pcState.hover = null; });
+      cv.addEventListener('drop', e => {
+        e.preventDefault();
+        const k = pcZoneAt(e), part = e.dataTransfer.getData('text');
+        pcState.hover = null;
+        if (part && PC_PARTS[part]) pcState.selected = part;
+        if (k) placePc(k);
+      });
+    })();
+
+    function renderPc() {
+      const tray = document.getElementById('pc-tray');
+      tray.innerHTML = '';
+      Object.entries(PC_PARTS).forEach(([k, d]) => {
+        if (pcState.placed[k]) return;
+        const el = document.createElement('div');
+        el.className = 'pc-part retro-font flex items-center gap-2' + (pcState.selected === k ? ' sel' : '');
+        const ic = document.createElement('canvas');
+        ic.width = 24; ic.height = 24; ic.className = 'w-8 h-8 shrink-0';
+        drawItemSprite(ic.getContext('2d'), k, 24);
+        const nm = document.createElement('span');
+        nm.textContent = d.name;
+        el.appendChild(ic); el.appendChild(nm);
+        el.draggable = true;
+        el.onclick = () => { pcState.selected = k; renderPc(); };
+        el.ondragstart = e => { pcState.selected = k; e.dataTransfer.setData('text', k); };
+        tray.appendChild(el);
       });
     }
 
@@ -1664,7 +1917,8 @@
       if (pcState.placed[k]) return;
       if (!sel) { msg.textContent = 'Спочатку оберіть деталь зі списку.'; return; }
       if (sel !== k) {
-        gameState.incorrectAttempts++; sound.playError(); pcState.selected = null;
+        gameState.incorrectAttempts++; sound.playError(); addXp(XP_RULES.mistake);
+        pcState.flashZone = k; pcState.flashUntil = Date.now() + 450; pcState.selected = null;
         msg.textContent = "Не підходить: " + PC_PARTS[sel].name + " має інший роз'єм. Перевірте форму слота.";
         renderPc(); return;
       }
@@ -1673,13 +1927,22 @@
       if (Object.keys(pcState.placed).length === 3) { sound.playSuccess(); setTimeout(finishPc, 1400); }
     }
 
+    let pcLoopId = 0;
+    function pcTick(id) {
+      if (!gameState.pcOpen || id !== pcLoopId) return;
+      drawPcCanvas();
+      requestAnimationFrame(() => pcTick(id));
+    }
+
     function openPc() {
-      pcState = { selected: null, placed: {} };
-      document.getElementById('pc-msg').textContent = 'Встановіть деталі: перетягніть їх у слоти або торкніться деталі, а потім слота.';
+      pcState = { selected: null, placed: {}, hover: null, flashZone: null, flashUntil: 0 };
+      document.getElementById('pc-msg').textContent = 'Встановіть деталі: перетягніть їх на схему або торкніться деталі, а потім слота.';
       renderPc();
+      updateXpChip();
       document.getElementById('pc-modal').classList.remove('hidden');
       gameState.pcOpen = true;
       Object.keys(keys).forEach(k => keys[k] = false);
+      pcTick(++pcLoopId);
     }
     function closePc() {
       gameState.pcOpen = false;
@@ -1705,21 +1968,58 @@
       }
     }
 
+    // Office computers of level 2: beige tower + monitor + keyboard + mouse (pixel art, black outline)
+    const PC_OFFSETS = [4, 84];
+
+    function generateComputer(ctx, w, h, bad) {
+      const R = (c, x, y, a, b) => drawPixelRect(ctx, c, x, y, a, b);
+      // system unit
+      R('#05080f', 0, 0, 16, 36); R('#c9c5bd', 1, 1, 14, 34);
+      R('#efede6', 1, 1, 14, 1); R('#efede6', 1, 1, 1, 34);
+      R('#9b978f', 14, 1, 1, 34); R('#9b978f', 1, 34, 14, 1);
+      R('#05080f', 3, 4, 10, 5); R('#f3f1ea', 4, 5, 8, 3);
+      R('#05080f', 3, 11, 10, 6); R('#f3f1ea', 4, 12, 8, 1); R('#f3f1ea', 4, 14, 8, 1);
+      R('#05080f', 5, 19, 1, 1); R('#05080f', 8, 19, 2, 1); R(bad ? '#ef4444' : '#4ade80', 11, 19, 1, 1);
+      R('#05080f', 3, 23, 10, 7); R('#c9c5bd', 4, 24, 8, 1); R('#c9c5bd', 4, 26, 8, 1); R('#c9c5bd', 4, 28, 8, 1);
+      R('#05080f', 6, 25, 3, 3);
+      R('#05080f', 3, 32, 10, 2); R('#c9c5bd', 4, 32, 3, 1);
+      // dark side of the tower
+      R('#05080f', 16, 0, 5, 36); R('#6b6b6b', 16, 1, 4, 34); R('#8a8a8a', 16, 1, 1, 34); R('#4a4a4a', 19, 1, 1, 34);
+      // monitor
+      R('#05080f', 21, 0, 40, 29); R('#c7c3bb', 22, 1, 38, 27);
+      R('#efede6', 22, 1, 38, 1); R('#efede6', 22, 1, 1, 27); R('#8f8c86', 59, 1, 1, 27);
+      R('#d8d5ce', 23, 24, 36, 3); R('#efede6', 38, 25, 6, 1); R('#8f8c86', 23, 27, 36, 1);
+      R('#05080f', 23, 3, 36, 21);
+      if (bad) {
+        R('#0b0f19', 24, 4, 34, 19);
+      } else {
+        R('#0e7490', 24, 4, 34, 19); R('#155e75', 24, 16, 34, 7);
+        R('#67e8f9', 28, 7, 12, 1); R('#a5f3fc', 28, 9, 6, 1); R('#22d3ee', 28, 12, 18, 1); R('#22d3ee', 28, 14, 10, 1);
+      }
+      R(bad ? '#6b7280' : '#f4f4f4', 26, 6, 1, 12); R(bad ? '#6b7280' : '#f4f4f4', 55, 6, 1, 12);
+      R(bad ? '#4b5563' : '#cbd5e1', 26, 18, 1, 1);
+      // neck
+      R('#05080f', 36, 29, 10, 3); R('#8a8a8a', 37, 29, 8, 3);
+      // keyboard
+      R('#05080f', 22, 31, 38, 5); R('#d3cfc7', 23, 32, 36, 3); R('#efede6', 23, 32, 36, 1);
+      for (let i = 0; i < 17; i++) R('#8f8c86', 24 + i * 2, 33, 1, 1);
+      R('#6b6b6b', 23, 34, 36, 1); R('#6b6b6b', 55, 32, 4, 3);
+      // mouse
+      R('#05080f', 62, 31, 10, 5); R('#d5d1c9', 63, 32, 8, 3); R('#efede6', 63, 32, 4, 1);
+      R('#8f8c86', 68, 33, 3, 2); R('#8f8c86', 66, 32, 1, 1);
+    }
+
     function drawComputer(t) {
       const tm = Date.now();
-      [16, 100].forEach((ox, idx) => {
-        const x = t.x + ox, y = t.y - 12, bad = (t.id === 2 && idx === 1 && !gameState.pcFixed);
-        const R = (c, a, b, w, h) => { ctx.fillStyle = c; ctx.fillRect(x + a, y + b, w, h); };
-        R('#05080f', -1, -1, 36, 26); R('#3b4659', 0, 0, 34, 24); R('#6b7a93', 0, 0, 34, 1); R('#232c3d', 0, 23, 34, 1);
-        R(bad ? '#0b0f19' : '#0e7490', 2, 2, 30, 19);
-        if (bad) {
-          for (let i = 0; i < 14; i++) { R('#ef4444', 9 + i, 5 + i, 2, 1); R('#ef4444', 23 - i, 5 + i, 2, 1); }
-          if (Math.floor(tm / 200) % 2) R('#facc15', (tm >> 4) % 28 + 3, (tm >> 3) % 16 + 3, 2, 2);
-        } else {
-          R('#67e8f9', 4, 4, 10, 1); R('#155e75', 4, 8, 22, 1); R('#155e75', 4, 11, 16, 1); R('#22d3ee', 4, 15, 6, 1);
+      PC_OFFSETS.forEach((ox, idx) => {
+        const x = t.x + ox, y = t.y - 9, bad = (t.id === 2 && idx === 1 && !gameState.pcFixed);
+        const img = sprites.get(bad ? 'pc_bad' : 'pc_ok', (c, w, h) => generateComputer(c, w, h, bad), 72, 36);
+        ctx.drawImage(img, x, y);
+        if (bad) { // broken PC: red cross and a wandering dot on the black screen (screen = 24,4,34,19)
+          const R = (c, a, b, w, h) => { ctx.fillStyle = c; ctx.fillRect(x + a, y + b, w, h); };
+          for (let i = 0; i < 14; i++) { R('#ef4444', 34 + i, 7 + i, 2, 1); R('#ef4444', 48 - i, 7 + i, 2, 1); }
+          if (Math.floor(tm / 200) % 2) R('#facc15', (tm >> 4) % 30 + 26, (tm >> 3) % 15 + 6, 2, 2);
         }
-        R('#4b5563', 14, 24, 6, 4); R('#6b7280', 10, 28, 14, 2);
-        R('#475569', 5, 33, 24, 5); R('#94a3b8', 5, 33, 24, 1);
       });
     }
 
@@ -1742,21 +2042,21 @@
     // --- PARALLAX / LIGHTING ---
     function getParallax() {
       const p = gameState.player, k = Math.max(0, 2 - camera.zoom);
-      return { x: ((p.x + 12) / V_WIDTH - 0.5) * k, y: ((p.y + 12) / V_HEIGHT - 0.5) * k };
+      return { x: ((p.x + 12) / ROOM_W - 0.5) * k, y: ((p.y + 12) / ROOM_H - 0.5) * k };
     }
 
     function drawBackWall(par) { // far layer: moves less than the room
       const ox = par.x * 6, oy = par.y * 3, hot = gameState.room === 2 && !gameState.coolerDone;
-      ctx.save(); ctx.beginPath(); ctx.rect(32, 2, 416, 28); ctx.clip();
-      ctx.fillStyle = '#0a1020'; ctx.fillRect(32, 2, 416, 28);
+      ctx.save(); ctx.beginPath(); ctx.rect(32, 2, ROOM_W - 64, 28); ctx.clip();
+      ctx.fillStyle = '#0a1020'; ctx.fillRect(32, 2, ROOM_W - 64, 28);
       const R = (c, x, y, w, h) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); };
-      for (let x = -8; x < 460; x += 64) {
+      for (let x = -8; x < ROOM_W - 20; x += 64) {
         const X = x + ox;
         R('#1b2740', X + 4, 6 + oy, 40, 18); R('#070b14', X + 6, 8 + oy, 36, 14);
         for (let i = 0; i < 6; i++) { const hg = 3 + Math.abs(i * 7 + x) % 9; R(hot ? '#ef4444' : '#22c55e', X + 9 + i * 5, 21 + oy - hg, 3, hg); }
         R('#38bdf8', X + 52, 10 + oy, 2, 2); R('#f59e0b', X + 52, 15 + oy, 2, 2);
       }
-      R('#1e293b', 32, 26 + oy, 416, 2);
+      R('#1e293b', 32, 26 + oy, ROOM_W - 64, 2);
       ctx.restore();
     }
 
@@ -1770,9 +2070,9 @@
       });
     }
 
-    function drawLighting(par) {
+    function drawLighting(par, vx, vy) {
       const t = Date.now() * 0.001, g = gameState, p = g.player;
-      ctx.fillStyle = 'rgba(4,8,24,0.36)'; ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+      ctx.fillStyle = 'rgba(4,8,24,0.36)'; ctx.fillRect(0, 0, ROOM_W, ROOM_H);
       ctx.globalCompositeOperation = 'lighter';
       const glow = (x, y, r, c, a) => {
         const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
@@ -1783,15 +2083,15 @@
       glow(330 - par.x * 10, 140, 130, '255,150,60', 0.30);
       if (g.room === 2 && !g.coolerDone) glow(64, 96, 100, '248,70,50', 0.30 + 0.15 * Math.sin(t * 6));
       else glow(64, 96, 90, g.room === 2 ? '74,222,128' : '56,189,248', 0.28);
-      if (g.room === 2) TABLES.forEach(tb => [16, 100].forEach((ox, i) => {
+      if (g.room === 2) TABLES.forEach(tb => PC_OFFSETS.forEach((ox, i) => {
         const bad = tb.id === 2 && i === 1 && !g.pcFixed;
-        glow(tb.x + ox + 17, tb.y, 42, bad ? '248,70,50' : '34,211,238', bad ? 0.2 + 0.1 * Math.sin(t * 12) : 0.22);
+        glow(tb.x + ox + 40, tb.y + 6, 50, bad ? '248,70,50' : '34,211,238', bad ? 0.2 + 0.1 * Math.sin(t * 12) : 0.22);
       }));
       glow(p.x + 12, p.y + 12, 46, '255,200,140', 0.10);
       ctx.globalCompositeOperation = 'source-over';
-      const vg = ctx.createRadialGradient(240, 160, 120, 240, 160, 320);
+      const vg = ctx.createRadialGradient(vx, vy, 120, vx, vy, 320);
       vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.55)');
-      ctx.fillStyle = vg; ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+      ctx.fillStyle = vg; ctx.fillRect(vx - 300, vy - 200, 600, 400);
     }
 
     // --- RENDER PIPELINE ---
@@ -1800,8 +2100,8 @@
       ctx.save();
       const par = getParallax();
       const z = camera.zoom * 1.05;
-      const cx = Math.min(Math.max(camera.cx, V_WIDTH / (2 * z)), V_WIDTH - V_WIDTH / (2 * z));
-      const cy = Math.min(Math.max(camera.cy, V_HEIGHT / (2 * z)), V_HEIGHT - V_HEIGHT / (2 * z));
+      const cx = Math.min(Math.max(camera.cx, V_WIDTH / (2 * z)), ROOM_W - V_WIDTH / (2 * z));
+      const cy = Math.min(Math.max(camera.cy, V_HEIGHT / (2 * z)), ROOM_H - V_HEIGHT / (2 * z));
       ctx.setTransform(z, 0, 0, z, V_WIDTH / 2 - cx * z - par.x * 8, V_HEIGHT / 2 - cy * z - par.y * 5);
       ctx.imageSmoothingEnabled = false;
 
@@ -1809,8 +2109,8 @@
       const floorImg = sprites.get('floor', generateFloorTile);
       const wallImg = sprites.get('wall', generateWallTile);
 
-      for (let r = 0; r < 10; r++) {
-        for (let c = 0; c < 15; c++) {
+      for (let r = 0; r < MAP_ROWS; r++) {
+        for (let c = 0; c < MAP_COLS; c++) {
           const tile = MAP[r][c];
           const x = c * TILE_SIZE;
           const y = r * TILE_SIZE;
@@ -1846,19 +2146,30 @@
       ctx.fillStyle = `rgba(56, 189, 248, 0.1)`;
       ctx.fillRect(96, 64, 48, 96);
 
-      // Render Tables
+      // Render Tables (room 2: a desk with its computers and items is drawn AFTER the player
+      // when the player stands behind it, so the computers always stay in the foreground)
       const benchImg = sprites.get('workbench', generateWorkbench, 160, 48);
       const deskImg = sprites.get('desk', generateDesk, 160, 64);
-      TABLES.forEach(table => {
+      const pl = gameState.player;
+      const drawTable = (table) => {
         ctx.drawImage(gameState.room === 2 ? deskImg : benchImg, table.x, table.y);
         if (gameState.room === 2) drawComputer(table);
+      };
+      const drawItemAt = (item) => {
+        const itemCanvas = sprites.get('item_' + item.type, (c) => drawItemSprite(c, item.type), 24, 24);
+        ctx.drawImage(itemCanvas, Math.round(item.x), Math.round(item.y));
+      };
+      const deferredTables = [];
+      TABLES.forEach(table => {
+        if (gameState.room === 2 && (pl.y + pl.h) < table.y + 32) deferredTables.push(table);
+        else drawTable(table);
       });
 
       // Render Items on Table Surfaces & Floor
       gameState.items.forEach(item => {
-        if (item.installed || item === gameState.player.carriedItem) return;
-        const itemCanvas = sprites.get('item_' + item.type, (c) => drawItemSprite(c, item.type), 24, 24);
-        ctx.drawImage(itemCanvas, Math.round(item.x), Math.round(item.y));
+        if (item.installed || item === pl.carriedItem) return;
+        if (item.currentSlot && deferredTables.some(t => t.id === item.currentSlot.tableId)) return;
+        drawItemAt(item);
       });
 
       // Render Professor NPC
@@ -1914,13 +2225,23 @@
         ctx.fillText(itemName, lx, ly);
       }
 
+      // Desks the player is standing behind: drawn over the player
+      deferredTables.forEach(table => {
+        drawTable(table);
+        gameState.items.forEach(item => {
+          if (item.installed || item === pl.carriedItem) return;
+          if (item.currentSlot && item.currentSlot.tableId === table.id) drawItemAt(item);
+        });
+      });
+
       // Render Particles
       gameState.particles.forEach(pt => {
         ctx.fillStyle = pt.color;
         ctx.fillRect(pt.x, pt.y, 3, 3);
       });
 
-      drawLighting(par);
+      drawFloaters();
+      drawLighting(par, cx, cy);
       drawLamps(par);
       drawRoomHints();
       ctx.restore();
@@ -1970,6 +2291,7 @@
       gameState.completed = true;
       closeDialogue();
       document.getElementById('stat-errors').innerText = gameState.incorrectAttempts;
+      document.getElementById('stat-xp').innerText = gameState.xp;
       document.getElementById('victory-screen').classList.remove('hidden');
       document.getElementById('game-hud').classList.add('invisible');
     }
@@ -1987,11 +2309,12 @@
       gameState.room = 1; gameState.coolerDone = false; gameState.pcFixed = false;
       closePc(); fadeAlpha = 0;
       TABLES = TABLES_R1; Object.keys(roomStore).forEach(k => delete roomStore[k]);
-      gameState.bonus = 0; NPC.joy = 0; document.getElementById('bonus-chip').classList.add('hidden');
+      gameState.xp = 0; gameState.floaters = []; NPC.joy = 0; updateXpChip();
       gameState.player.x = 140;
       gameState.player.y = 150;
       gameState.player.carriedItem = null;
 
+      followCamera(true);
       initItems();
       updateTaskUI();
       document.getElementById('victory-screen').classList.add('hidden');
@@ -2005,6 +2328,7 @@
     // Start Game Button
     document.getElementById('start-game-btn').addEventListener('click', () => {
       gameState.gameStarted = true;
+      followCamera(true);
       document.getElementById('intro-screen').classList.add('hidden');
       document.getElementById('game-hud').classList.remove('invisible');
       talkToProfessor();
@@ -2076,6 +2400,8 @@
     window.onload = function() {
       initItems();
       updateTaskUI();
+      updateXpChip();
+      followCamera(true);
       const portraitCtx = document.getElementById('npc-portrait').getContext('2d');
       portraitCtx.imageSmoothingEnabled = false;
       portraitCtx.drawImage(sprites.get('professor', generateProfessorSprite, 32, 32), 4, 0, 24, 24, 0, 0, 32, 32);
