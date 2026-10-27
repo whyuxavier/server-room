@@ -978,19 +978,19 @@
     }));
 
     let TABLES = [
-      { id: 1, x: 250, y: 48,  w: 160, h: 48 },
-      { id: 2, x: 250, y: 140, w: 160, h: 48 },
-      { id: 3, x: 250, y: 230, w: 160, h: 48 }
+      { id: 1, x: 250, y: 48,  w: 160, h: 64 },
+      { id: 2, x: 250, y: 140, w: 160, h: 64 },
+      { id: 3, x: 250, y: 230, w: 160, h: 64 }
     ];
 
-    function generateTableSlots() {
+    function generateTableSlots(dy = 0) {
       const slots = [];
       TABLES.forEach(table => {
         for (let i = 0; i < 4; i++) {
           slots.push({
             tableId: table.id,
             x: table.x + 12 + i * 36,
-            y: table.y + 12,
+            y: table.y + 12 + dy,
             item: null
           });
         }
@@ -1180,7 +1180,7 @@
         'coffee', 'fire_extinguisher', 'book', 'keyboard', 'mouse', 'usb'
       ];
 
-      tableSlots = generateTableSlots();
+      tableSlots = generateTableSlots(4);
       const allPossibleLocations = [];
 
       tableSlots.forEach(s => allPossibleLocations.push({ type: 'table', slot: s }));
@@ -2146,13 +2146,12 @@
       ctx.fillStyle = `rgba(56, 189, 248, 0.1)`;
       ctx.fillRect(96, 64, 48, 96);
 
-      // Render Tables (room 2: a desk with its computers and items is drawn AFTER the player
-      // when the player stands behind it, so the computers always stay in the foreground)
-      const benchImg = sprites.get('workbench', generateWorkbench, 160, 48);
+      // Render Tables (both rooms use the same desk; a desk with its computers and items is drawn
+      // AFTER the player when the player stands behind it, so it always stays in the foreground)
       const deskImg = sprites.get('desk', generateDesk, 160, 64);
       const pl = gameState.player;
       const drawTable = (table) => {
-        ctx.drawImage(gameState.room === 2 ? deskImg : benchImg, table.x, table.y);
+        ctx.drawImage(deskImg, table.x, table.y);
         if (gameState.room === 2) drawComputer(table);
       };
       const drawItemAt = (item) => {
@@ -2161,7 +2160,7 @@
       };
       const deferredTables = [];
       TABLES.forEach(table => {
-        if (gameState.room === 2 && (pl.y + pl.h) < table.y + 32) deferredTables.push(table);
+        if ((pl.y + pl.h) < table.y + 32) deferredTables.push(table);
         else drawTable(table);
       });
 
