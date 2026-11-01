@@ -1,0 +1,219 @@
+{
+  "note": "Exported 1:1 from index.html drawing code. Pixel sizes are native; draw with image-rendering:pixelated.",
+  "sprites": {
+    "characters/technician/down_0.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician/down_1.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician/down_2.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician/down_3.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician/left_0.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician/left_1.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician/left_2.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician/left_3.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician/right_0.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician/right_1.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician/right_2.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician/right_3.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician/up_0.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician/up_1.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician/up_2.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician/up_3.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "characters/technician_sheet.png": {
+      "w": 128,
+      "h": 128,
+      "frame": [
+        32,
+        32
+      ],
+      "rows": [
+        "down",
+        "left",
+        "right",
+        "up"
+      ],
+      "cols": "frames 0-3 (0 = idle)"
+    },
+    "characters/professor.png": {
+      "w": 32,
+      "h": 32,
+      "anchor": "draw at (x-4, y-8)"
+    },
+    "items/ram.png": {
+      "w": 24,
+      "h": 24
+    },
+    "items/ssd.png": {
+      "w": 24,
+      "h": 24
+    },
+    "items/gpu.png": {
+      "w": 24,
+      "h": 24
+    },
+    "items/monitor.png": {
+      "w": 24,
+      "h": 24
+    },
+    "items/ethernet.png": {
+      "w": 24,
+      "h": 24
+    },
+    "items/cpu.png": {
+      "w": 24,
+      "h": 24
+    },
+    "items/cooler.png": {
+      "w": 24,
+      "h": 24
+    },
+    "items/coffee.png": {
+      "w": 24,
+      "h": 24
+    },
+    "items/fire_extinguisher.png": {
+      "w": 24,
+      "h": 24
+    },
+    "items/book.png": {
+      "w": 24,
+      "h": 24
+    },
+    "items/keyboard.png": {
+      "w": 24,
+      "h": 24
+    },
+    "items/mouse.png": {
+      "w": 24,
+      "h": 24
+    },
+    "items/usb.png": {
+      "w": 24,
+      "h": 24
+    },
+    "objects/server_rack_0.png": {
+      "w": 64,
+      "h": 128,
+      "state": "0/5 units online"
+    },
+    "objects/server_rack_1.png": {
+      "w": 64,
+      "h": 128,
+      "state": "1/5 units online"
+    },
+    "objects/server_rack_2.png": {
+      "w": 64,
+      "h": 128,
+      "state": "2/5 units online"
+    },
+    "objects/server_rack_3.png": {
+      "w": 64,
+      "h": 128,
+      "state": "3/5 units online"
+    },
+    "objects/server_rack_4.png": {
+      "w": 64,
+      "h": 128,
+      "state": "4/5 units online"
+    },
+    "objects/server_rack_5.png": {
+      "w": 64,
+      "h": 128,
+      "state": "5/5 units online"
+    },
+    "objects/desk.png": {
+      "w": 160,
+      "h": 64
+    },
+    "objects/workbench.png": {
+      "w": 160,
+      "h": 64
+    },
+    "objects/computer_ok.png": {
+      "w": 72,
+      "h": 36
+    },
+    "objects/computer_bad.png": {
+      "w": 72,
+      "h": 36
+    },
+    "tiles/wall.png": {
+      "w": 32,
+      "h": 32
+    },
+    "tiles/floor_0.png": {
+      "w": 32,
+      "h": 32
+    },
+    "tiles/floor_1.png": {
+      "w": 32,
+      "h": 32
+    },
+    "tiles/floor_2.png": {
+      "w": 32,
+      "h": 32
+    }
+  }
+}
