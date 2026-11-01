@@ -107,7 +107,7 @@
       }
       #intro-screen > .pixel-box, #pause-screen > .pixel-box,
       #controls-modal > .pixel-box, #victory-screen > .pixel-box { margin: auto; padding: 12px !important; }
-      #npc-dialog-text, #feedback-text { font-size: 1rem; }
+      #npc-dialog-text { font-size: 8px !important; } #feedback-text { font-size: 1rem; }
     }
   .pc-slot{border:2px dashed #94a3b8;display:flex;align-items:center;justify-content:center;padding:4px;font-size:1rem;line-height:1;color:#cbd5e1;background:#0b2a1a;cursor:pointer}
     .pc-slot.ok{border:2px solid #4ade80;background:#15803d;color:#fff}
@@ -168,7 +168,7 @@
               <h4 class="pixel-font text-[10px] text-yellow-400">ПРОФЕСОР</h4>
               <span id="npc-dialog-level" class="pixel-font text-[9px] text-slate-400 bg-slate-900 px-1 border border-slate-700"></span>
             </div>
-            <p id="npc-dialog-text" class="retro-font text-base md:text-xl text-slate-200 leading-tight"></p>
+            <p id="npc-dialog-text" class="pixel-font text-[9px] md:text-[11px] text-slate-200" style="line-height:1.8;min-height:3.6em"></p>
           </div>
           <button id="npc-dialog-close" class="pixel-btn text-[10px] px-2 py-1 shrink-0">
             ОК
@@ -268,6 +268,21 @@
             <p id="pc-msg" class="retro-font text-lg text-slate-200 leading-tight min-h-[2.5rem]"></p>
             <div id="pc-tray" class="flex flex-col gap-2"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- Caesar cipher: the professor's password -->
+      <div id="cipher-screen" class="hidden absolute inset-0 bg-slate-950/95 z-30 flex flex-col items-center justify-center p-3 text-center" style="overflow-y:auto">
+        <div class="pixel-box p-3 md:p-5 bg-slate-900" style="max-width:34rem;width:100%;margin:auto">
+          <h2 class="pixel-font text-[11px] md:text-sm text-cyan-300 mb-3">ПАРОЛЬ АДМІНІСТРАТОРА</h2>
+          <div class="pixel-font text-[8px] md:text-[10px] text-slate-300 mb-2" style="line-height:1.8">Папірець професора: шифр Цезаря, кожну літеру пароля зсунуто на <span id="cipher-shift" class="text-amber-300"></span> вперед в англійському алфавіті.</div>
+          <div class="bg-slate-950 border-2 border-amber-400 py-3 mb-3"><span id="cipher-code" class="pixel-font text-lg md:text-2xl text-amber-300" style="letter-spacing:.2em"></span></div>
+          <button id="cipher-hint-btn" class="pixel-btn pixel-font text-[8px] md:text-[9px] px-2 py-2 mb-2">[ ПІДКАЗКА: ТАБЛИЦЯ ]</button>
+          <div id="cipher-strip" class="hidden pixel-font flex flex-wrap justify-center mb-2" style="font-size:9px"></div>
+          <div class="pixel-font text-[8px] text-slate-400 mb-2">Введіть розшифроване слово:</div>
+          <input id="cipher-input" type="text" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" class="pixel-font text-center text-sm md:text-base text-emerald-300 bg-slate-950 border-2 border-slate-600 px-2 py-2 mb-2" style="width:12rem;text-transform:uppercase;outline:none">
+          <div id="cipher-msg" class="pixel-font text-[8px] text-red-400 mb-2" style="min-height:1.6em;line-height:1.6"></div>
+          <button id="cipher-ok" class="pixel-btn pixel-font text-[10px] px-4 py-2">[ ВВЕСТИ ]</button>
         </div>
       </div>
 
@@ -397,6 +412,16 @@
           osc.start(now + idx * 0.1); osc.stop(now + idx * 0.1 + 0.1);
         });
       }
+      playTalk() {
+        if (!this.enabled || !this.ctx) return;
+        const t = this.ctx.currentTime, osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(150 + Math.random() * 90, t);
+        gain.gain.setValueAtTime(0.045, t);
+        gain.gain.linearRampToValueAtTime(0.001, t + 0.05);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(t); osc.stop(t + 0.055);
+      }
       playStep() {
         if (!this.enabled || !this.ctx) return;
         const osc = this.ctx.createOscillator();
@@ -456,7 +481,8 @@
       book: "Інструкція корисна, але потрібна деталь.",
       keyboard: "Клавіатура не замінить внутрішній компонент.",
       mouse: "Миша зараз не потрібна.",
-      usb: "Флешка не вирішить цю несправність."
+      usb: "Флешка не вирішить цю несправність.",
+      lancable: "Цей кабель потрібен комутатору, а не сюди."
     };
 
     const ITEM_NAMES = {
@@ -471,13 +497,45 @@
       keyboard: "Клавіатура",
       mouse: "Миша",
       usb: "Флешка",
-      cooler: "Блок охолодження"
+      cooler: "Блок охолодження",
+      lancable: "Мережевий кабель"
     };
 
     // --- SPRITE SHEET GENERATOR ---
+    // --- IMAGE PACK (folder img/): used when present, otherwise the procedural art is the fallback ---
+    const IMG_DIR = 'img/';
+    const IMG_FILES = (() => {
+      const m = { pc_ok: 'objects/computer_ok', pc_bad: 'objects/computer_bad', desk: 'objects/desk',
+                  wall: 'tiles/wall', floor: 'tiles/floor_0' };
+      for (let i = 0; i < 3; i++) m['floor' + i] = 'tiles/floor_' + i;
+      for (let i = 0; i < 6; i++) m['server_rack_' + i] = 'objects/server_rack_' + i;
+      ['ram','ssd','gpu','monitor','ethernet','coffee','fire_extinguisher','book','keyboard','mouse','usb','cooler','cpu']
+        .forEach(t => m['item_' + t] = 'items/' + t);
+      ['up','down','left','right'].forEach(d => { for (let f = 0; f < 4; f++) {
+        m['player_' + d + '_' + f] = 'characters/player/' + d + '_' + f;
+        m['prof_' + d + '_' + f] = 'characters/professor/' + d + '_' + f; } });
+      return m;
+    })();
+    const IMG_CACHE = {};
+    function imgFor(key) {
+      const f = IMG_FILES[key];
+      if (!f) return null;
+      let e = IMG_CACHE[f];
+      if (!e) {
+        e = IMG_CACHE[f] = { ok: false, img: new Image() };
+        e.img.onload = () => { e.ok = true; if (typeof onImagesChanged === 'function') onImagesChanged(); };
+        e.img.onerror = () => { e.ok = false; };
+        e.img.src = IMG_DIR + f + '.png';
+      }
+      return e.ok ? e.img : null;
+    }
+    (function preloadImages() { Object.keys(IMG_FILES).forEach(k => imgFor(k)); })();
+
     class SpriteSheet {
       constructor() { this.cache = {}; }
       get(key, drawFn, width = 32, height = 32) {
+        const pic = imgFor(key);
+        if (pic) return pic;
         if (this.cache[key]) return this.cache[key];
         const cvs = document.createElement('canvas');
         cvs.width = width; cvs.height = height;
@@ -825,6 +883,15 @@
           R('#6b7280', 6, 20, 12, 2);
           R('#9ca3af', 6, 20, 12, 1);
           break;
+        case 'lancable': {
+          const ring = (cx, cy) => { for (let y = -6; y <= 6; y++) for (let x = -6; x <= 6; x++) { const d2 = x * x + y * y;
+            if (d2 >= 12 && d2 <= 30) R(x + y < 0 ? '#fb923c' : '#c2410c', cx + x, cy + y, 1, 1); } };
+          ring(8, 15); ring(16, 15);
+          R('#facc15', 10, 8, 4, 3); R('#a16207', 10, 10, 4, 1);
+          R('#f1f5f9', 11, 2, 6, 7); R('#94a3b8', 11, 8, 6, 1); R('#ffffff', 11, 2, 6, 1);
+          R('#eab308', 12, 5, 1, 2); R('#eab308', 14, 5, 1, 2); R('#eab308', 16, 5, 1, 2);
+          break;
+        }
         case 'ethernet':
           for (let y = -9; y <= 9; y++) {
             for (let x = -9; x <= 9; x++) {
@@ -948,6 +1015,8 @@
 
     function drawItemSprite(ctx, type, size = 24) {
       ctx.clearRect(0, 0, size, size);
+      const pic = imgFor('item_' + type);
+      if (pic) { ctx.imageSmoothingEnabled = false; ctx.drawImage(pic, 0, 0, size, size); return; }
       withOutline(ctx, size, size, (c) => drawItemArt(c, type));
     }
 
@@ -1008,6 +1077,20 @@
     // Professor NPC (gives the tasks through dialogue)
     const NPC = { x: 96, y: 248, w: 24, h: 24 };
 
+    // --- NETWORK SWITCHES (both rooms) ---
+    const SWITCH = { x: 496, y: 150, w: 36, h: 52 };
+    const SWITCH_CENTER = { x: SWITCH.x + SWITCH.w / 2, y: SWITCH.y + SWITCH.h / 2 };
+    const NET_TIMER_MS = 30000;          // 30 seconds after entering room 2 (hidden from the player: the outage is a surprise)
+    const OUTAGE_FIRST_LINE = {
+      pcBroken: "Що за дим?! Комутатор згорів: несправний комп'ютер засипав мережу помилками, і він не витримав.",
+      pcFixed: "Що за дим?! Комутатор згорів від стрибка напруги, хоч комп'ютер ви й полагодили."
+    };
+    const OUTAGE_LINES = [
+      "",
+      "Без комутатора ця серверна не бачить першу, інтернет зник. Потрібен новий мережевий кабель.",
+      "Запасний кабель має бути десь тут, у цій серверній. Знайдіть його й з'єднайте цей комутатор із комутатором у першій кімнаті!"
+    ];
+
     // --- ENDING CUTSCENE ---
     const NPC_HOME = { x: NPC.x, y: NPC.y };
     const CUTSCENE_FOCUS = { x: 90, y: 110 };
@@ -1030,6 +1113,7 @@
     // --- XP ECONOMY ---
     const XP_RULES = {
       levelComplete: 10,  // every successfully completed level / stage
+      tidyItem: 5,        // an item that lay on the floor is put on a table (once per item)
       coffee: 50,         // a cup of coffee
       mistake: -10        // a failure or an incorrect action
     };
@@ -1092,6 +1176,20 @@
       const c = gameState.cutscene;
       if (!c || c.phase !== 'talk') return;
       c.line++;
+      if (c.kind === 'cipher') {
+        if (c.line < c.lines.length) showDialogue(c.lines[c.line], 'РІВЕНЬ 3: ПАРОЛЬ');
+        else {
+          gameState.cutscene = null; camera.zoom = 1; followCamera(true);
+          document.getElementById('game-hud').classList.remove('invisible');
+          openCipher();
+        }
+        return;
+      }
+      if (c.kind === 'outage') {
+        if (c.line < c.lines.length) showDialogue(c.lines[c.line], 'РІВЕНЬ 2: ЗБІЙ МЕРЕЖІ');
+        else { c.phase = 'leave'; c.wpi = c.route.length - 2; }
+        return;
+      }
       if (c.line < c.lines.length) {
         showDialogue(c.lines[c.line], 'РІВЕНЬ 1: ПРОЙДЕНО');
       } else {
@@ -1102,6 +1200,9 @@
 
     function updateCutscene() {
       const c = gameState.cutscene;
+      if (c.kind === 'outage') { updateOutageCutscene(c); return; }
+      if (c.kind === 'cipher') { updateCipherCutscene(c); return; }
+      if (c.kind === 'cipherExit') { updateCipherExit(c); return; }
       c.t++;
       let tz = 2, tcx = CUTSCENE_FOCUS.x, tcy = CUTSCENE_FOCUS.y;
       NPC.walking = false;
@@ -1139,6 +1240,222 @@
       camera.cy += (tcy - camera.cy) * 0.06;
     }
 
+    // --- NETWORK OUTAGE CUTSCENE (room 2): the switch burns, the professor arrives ---
+    function startOutageCutscene() {
+      gameState.outageDone = true;
+      if (gameState.pcOpen) closePc();
+      if (gameState.pcFixed) gameState.pcAnnounced = true;
+      closeFeedback();
+      closeDialogue(); // must run before the cutscene flag is set
+      Object.keys(keys).forEach(k => keys[k] = false);
+      const p = gameState.player;
+      p.isMoving = false; p.frame = 0; p.dir = 'right';
+      const standX = SWITCH.x - 36, standY = SWITCH.y + 14;
+      gameState.cutscene = {
+        kind: 'outage', phase: 'zoomIn', t: 0, line: 0,
+        lines: [gameState.pcFixed ? OUTAGE_FIRST_LINE.pcFixed : OUTAGE_FIRST_LINE.pcBroken, ...OUTAGE_LINES.slice(1)],
+        route: [{ x: 40, y: 224 }, { x: 40, y: 304 }, { x: 440, y: 304 }, { x: 440, y: standY }, { x: standX, y: standY }],
+        wpi: 0
+      };
+      document.getElementById('game-hud').classList.add('invisible');
+    }
+
+    function updateOutageCutscene(c) {
+      const g = gameState;
+      c.t++;
+      let tz = 2, tcx = SWITCH_CENTER.x - 20, tcy = SWITCH_CENTER.y;
+      NPC.walking = false;
+
+      if (c.phase === 'zoomIn') {
+        if (c.t === 30) { // bang: the switch burns
+          g.net = 'down'; sound.playError();
+          spawnParticles(SWITCH_CENTER.x, SWITCH.y + 8, '#facc15');
+          spawnParticles(SWITCH_CENTER.x, SWITCH.y + 8, '#ef4444');
+          spawnParticles(SWITCH_CENTER.x, SWITCH.y + 8, '#94a3b8');
+        }
+        if (c.t > 120) {
+          c.phase = 'walk'; c.wpi = 1;
+          NPC.x = c.route[0].x; NPC.y = c.route[0].y;
+        }
+      } else if (c.phase === 'walk') {
+        NPC.walking = true; tz = 1.6; tcx = NPC.x + 12; tcy = NPC.y + 12;
+        const wp = c.route[c.wpi];
+        if (stepNpcToward(wp.x, wp.y, 2.4)) {
+          if (c.wpi >= c.route.length - 1) {
+            NPC.walking = false; c.phase = 'talk'; c.line = 0;
+            showDialogue(c.lines[0], 'РІВЕНЬ 2: ЗБІЙ МЕРЕЖІ');
+          } else c.wpi++;
+        }
+      } else if (c.phase === 'talk') {
+        tcx = (NPC.x + SWITCH_CENTER.x) / 2; tcy = SWITCH_CENTER.y;
+      } else if (c.phase === 'leave') {
+        NPC.walking = true; tz = 1; tcx = g.player.x + 12; tcy = g.player.y + 12;
+        const wp = c.route[c.wpi];
+        if (stepNpcToward(wp.x, wp.y, 2.4)) {
+          if (c.wpi <= 0) {
+            NPC.walking = false; NPC.x = -200; NPC.y = -200;
+            g.cutscene = null; camera.zoom = 1; followCamera(true);
+            document.getElementById('game-hud').classList.remove('invisible');
+            updateTaskUI(); updateNetChip(true);
+            return;
+          }
+          c.wpi--;
+        }
+      }
+      if (c.phase === 'leave') { tz = 1; tcx = g.player.x + 12; tcy = g.player.y + 12; }
+      camera.zoom += (tz - camera.zoom) * 0.06;
+      camera.cx += (tcx - camera.cx) * 0.06;
+      camera.cy += (tcy - camera.cy) * 0.06;
+      updateParticles();
+    }
+
+    // --- LEVEL 3: the professor forgot the password (Caesar cipher) ---
+    const CIPHER_WORDS = ['NETWORK', 'ROUTER', 'SERVER', 'SWITCH', 'CABLE', 'ADMIN', 'ACCESS'];
+    const ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    function caesar(word, shift) { return [...word].map(ch => ABC[(ABC.indexOf(ch) + shift + 26) % 26]).join(''); }
+
+    function maybeStartCipher() {
+      const g = gameState;
+      if (g.cipherPending && g.room === 2 && !g.dialogueOpen && !g.cutscene && !g.pcOpen && !g.completed) {
+        g.cipherPending = false; startCipherCutscene();
+      }
+    }
+
+    function startCipherCutscene() {
+      closeFeedback();
+      Object.keys(keys).forEach(k => keys[k] = false);
+      const p = gameState.player; p.isMoving = false; p.frame = 0;
+      gameState.cutscene = {
+        kind: 'cipher', phase: 'zoomIn', t: 0, line: 0, wpi: 1,
+        lines: ["Ура, усе працює! Тепер увійду в систему адміністратора... Стоп. Я забув пароль!",
+                "Колись я зашифрував його шифром Цезаря й залишив підказку на папірці. Допоможіть розшифрувати!"],
+        route: [{ x: 40, y: 224 }, { x: 224, y: 224 }, { x: 224, y: 150 }]
+      };
+      document.getElementById('game-hud').classList.add('invisible');
+    }
+
+    function updateCipherCutscene(c) {
+      c.t++;
+      let tz = 1.6, tcx = NPC.x + 12, tcy = NPC.y + 12;
+      NPC.walking = false;
+      if (c.phase === 'zoomIn') {
+        tcx = 120; tcy = 224;
+        if (c.t > 30) { c.phase = 'walk'; NPC.x = c.route[0].x; NPC.y = c.route[0].y; }
+      } else if (c.phase === 'walk') {
+        NPC.walking = true;
+        const wp = c.route[c.wpi];
+        if (stepNpcToward(wp.x, wp.y, 2.4)) {
+          if (c.wpi >= c.route.length - 1) { NPC.walking = false; c.phase = 'talk'; c.line = 0; showDialogue(c.lines[0], 'РІВЕНЬ 3: ПАРОЛЬ'); }
+          else c.wpi++;
+        }
+      }
+      camera.zoom += (tz - camera.zoom) * 0.06;
+      camera.cx += (tcx - camera.cx) * 0.06;
+      camera.cy += (tcy - camera.cy) * 0.06;
+    }
+
+    // the professor walks back to the door and leaves, then the final screen appears
+    function startCipherExit() {
+      Object.keys(keys).forEach(k => keys[k] = false);
+      gameState.cutscene = { kind: 'cipherExit', phase: 'walk', t: 0, wpi: 0, route: [{ x: 224, y: 224 }, { x: 40, y: 224 }] };
+      document.getElementById('game-hud').classList.add('invisible');
+    }
+    function updateCipherExit(c) {
+      c.t++;
+      NPC.walking = true;
+      const wp = c.route[c.wpi];
+      if (stepNpcToward(wp.x, wp.y, 2.4)) {
+        if (c.wpi >= c.route.length - 1) {
+          NPC.walking = false; NPC.x = -200; NPC.y = -200;
+          gameState.cutscene = null; camera.zoom = 1; followCamera(true);
+          showVictory(); return;
+        }
+        c.wpi++;
+      }
+      camera.zoom += (1.6 - camera.zoom) * 0.06;
+      camera.cx += (NPC.x + 12 - camera.cx) * 0.06;
+      camera.cy += (NPC.y + 12 - camera.cy) * 0.06;
+    }
+
+    function openCipher() {
+      const g = gameState;
+      if (!g.cipher) {
+        const word = CIPHER_WORDS[Math.floor(Math.random() * CIPHER_WORDS.length)], shift = 2 + Math.floor(Math.random() * 4);
+        g.cipher = { word, shift, code: caesar(word, shift), wrong: 0 };
+      }
+      const z = g.cipher;
+      document.getElementById('cipher-code').innerText = z.code;
+      document.getElementById('cipher-shift').innerText = z.shift;
+      const strip = document.getElementById('cipher-strip'); strip.innerHTML = '';
+      [...ABC].forEach((L, i) => {
+        const d = document.createElement('div');
+        d.style.cssText = 'width:20px;text-align:center;margin:1px;border:1px solid #334155;background:#0b1220';
+        d.innerHTML = '<div style="color:#fbbf24">' + caesar(L, z.shift) + '</div><div style="color:#4ade80;border-top:1px solid #334155">' + L + '</div>';
+        strip.appendChild(d);
+      });
+      strip.classList.add('hidden');
+      document.getElementById('cipher-msg').innerText = '';
+      const inp = document.getElementById('cipher-input'); inp.value = '';
+      document.getElementById('cipher-screen').classList.remove('hidden');
+      g.cipherOpen = true;
+      setTimeout(() => { try { inp.focus(); } catch (e) {} }, 50);
+    }
+
+    function checkCipher() {
+      const g = gameState, z = g.cipher; if (!z) return;
+      const inp = document.getElementById('cipher-input'), msg = document.getElementById('cipher-msg');
+      const val = inp.value.trim().toUpperCase();
+      if (!val) return;
+      if (val === z.word) {
+        g.cipherOpen = false; document.getElementById('cipher-screen').classList.add('hidden');
+        sound.playSuccess(); addXp(XP_RULES.levelComplete); g.victoryQueued = true;
+        showDialogue("Пароль підійшов! Сервер працює, інтернет є, а я вкотре переконався: записувати паролі шифром корисно. Дякую, ви молодці!", 'РІВЕНЬ 3: ПРОЙДЕНО');
+      } else {
+        z.wrong++; g.incorrectAttempts++; addXp(XP_RULES.mistake); sound.playError();
+        msg.innerText = 'Не підходить. Зсувайте кожну літеру НАЗАД на ' + z.shift + '.';
+        if (z.wrong >= 2) document.getElementById('cipher-strip').classList.remove('hidden');
+        inp.select();
+      }
+    }
+
+    function spawnReplacementCable() {
+      const g = gameState, p = g.player;
+      const SPOTS = [{ x: 440, y: 308 }, { x: 330, y: 322 }, { x: 160, y: 318 }, { x: 452, y: 70 }, { x: 120, y: 120 }];
+      const free = SPOTS.filter(sp => g.items.every(i => Math.hypot(i.x - sp.x, i.y - sp.y) > 30) && Math.hypot(p.x - sp.x, p.y - sp.y) > 40);
+      const spot = shuffleArray(free.length ? free : SPOTS)[0];
+      const cable = { id: 'lancable', type: 'lancable', x: spot.x, y: spot.y, installed: false, currentSlot: null, plugged: null, startedOnFloor: false };
+      g.cable = cable; g.items.push(cable);
+    }
+
+    // Interaction with a network switch. Returns true when the key press was used up.
+    function useSwitch() {
+      const g = gameState, p = g.player;
+      if (g.net !== 'down' || !p.carriedItem) return false;
+      const cable = p.carriedItem;
+      if (cable.type !== 'lancable') {
+        sound.playError(); g.incorrectAttempts++; addXp(XP_RULES.mistake);
+        showFeedback("Не той предмет!", DISTRACTOR_FEEDBACK[cable.type] || "Це не мережевий кабель.");
+        return true;
+      }
+      if (cable.plugged == null) {
+        cable.plugged = g.room; sound.playPickup();
+        spawnParticles(SWITCH.x + 6, SWITCH.y + 34, '#60a5fa');
+        showFeedback("Кабель підключено", "Один кінець у комутаторі. Віднесіть інший до комутатора " + (g.room === 2 ? "першої серверної." : "другої серверної."));
+        return true;
+      }
+      if (cable.plugged === g.room) {
+        showFeedback("Той самий комутатор", "Другий кінець треба підключити в сусідній серверній.");
+        return true;
+      }
+      cable.installed = true; cable.plugged = null; p.carriedItem = null; g.cable = null;
+      g.items = g.items.filter(i => i !== cable);
+      g.net = 'fixed'; sound.playSuccess();
+      spawnParticles(SWITCH.x + 18, SWITCH.y + 20, '#10b981');
+      updateNetChip(true);
+      afterRoom2Step("Комутатори з'єднано: інтернет відновлено!");
+      return true;
+    }
+
     function shuffleArray(array) {
       const arr = [...array];
       for (let i = arr.length - 1; i > 0; i--) {
@@ -1157,7 +1474,8 @@
       completed: false,
       level0Complete: false,
       dialogueOpen: false,
-      cutscene: null, room: 1, coolerDone: false, pcFixed: false, pcOpen: false, xp: 0, floaters: [],
+      cutscene: null, cipherPending: false, cipherOpen: false, victoryQueued: false, outageDone: false, cipher: null, pcAnnounced: false, room: 1, coolerDone: false, pcFixed: false, pcOpen: false, xp: 0, floaters: [],
+      net: 'idle', netLeft: NET_TIMER_MS, cable: null, level2Done: false,
       player: {
         x: 140,
         y: 150,
@@ -1209,7 +1527,8 @@
             x: loc.x,
             y: loc.y,
             installed: false,
-            currentSlot: null
+            currentSlot: null,
+            startedOnFloor: true
           };
           gameState.items.push(newItem);
         }
@@ -1225,7 +1544,7 @@
       keys[e.code] = true;
 
       if (e.code === 'Escape') {
-        if (gameState.pcOpen) closePc(); else if (gameState.gameStarted && !gameState.completed) { togglePause(); }
+        if (gameState.pcOpen) closePc(); else if (gameState.cipherOpen) { /* the password screen stays */ } else if (gameState.gameStarted && !gameState.completed) { togglePause(); }
       }
 
       if (e.code === 'KeyE' || e.code === 'Space' || e.key === 'e' || e.key === 'Е' || e.key === 'е') {
@@ -1302,6 +1621,14 @@
              ny + p.h - margin > NPC.y;
     }
 
+    function checkSwitchCollision(nx, ny) {
+      const p = gameState.player, margin = 4;
+      return nx + margin < SWITCH.x + SWITCH.w &&
+             nx + p.w - margin > SWITCH.x &&
+             ny + margin < SWITCH.y + SWITCH.h &&
+             ny + p.h - margin > SWITCH.y;
+    }
+
     function isNearProfessor(pX, pY) {
       return Math.hypot(pX - (NPC.x + NPC.w / 2), pY - (NPC.y + NPC.h / 2)) < 48;
     }
@@ -1313,7 +1640,7 @@
                          checkMapCollision(nx + p.w - margin, ny + margin) ||
                          checkMapCollision(nx + margin, ny + p.h - margin) ||
                          checkMapCollision(nx + p.w - margin, ny + p.h - margin);
-      return mapBlocked || checkTableCollision(nx, ny) || checkNpcCollision(nx, ny);
+      return mapBlocked || checkTableCollision(nx, ny) || checkNpcCollision(nx, ny) || checkSwitchCollision(nx, ny);
     }
 
     function getNearbyTable(pX, pY) {
@@ -1338,7 +1665,7 @@
         closeDialogue();
         return;
       }
-      if (gameState.cutscene || gameState.pcOpen) return; handleInteractionCore();
+      if (gameState.cutscene || gameState.pcOpen || gameState.cipherOpen) return; handleInteractionCore();
       checkLevel0Progress();
     }
 
@@ -1348,6 +1675,9 @@
       const p = gameState.player;
       const pCenterX = p.x + p.w / 2;
       const pCenterY = p.y + p.h / 2;
+
+      // 0. Network switch
+      if (Math.hypot(pCenterX - SWITCH_CENTER.x, pCenterY - SWITCH_CENTER.y) < 60 && useSwitch()) return;
 
       // 1. Repair Zone check
       const repairDist = Math.hypot(pCenterX - 120, pCenterY - 112);
@@ -1381,6 +1711,7 @@
             item.y = freeSlot.y;
             item.currentSlot = freeSlot;
             freeSlot.item = item;
+            if (item.startedOnFloor && !item.tidyXpGiven) { item.tidyXpGiven = true; addXp(XP_RULES.tidyItem); } // +5 XP once per item
 
             p.carriedItem = null;
             sound.playDrop();
@@ -1541,32 +1872,59 @@
       return TASKS_DATA[Math.min(gameState.currentTaskIdx, TASKS_DATA.length - 1)].desc;
     }
 
+    // dialogue text is typed letter by letter with a short "voice" blip
+    const typing = { full: '', n: 0, acc: 0, on: false };
     function showDialogue(text, levelLabel) {
       gameState.dialogueOpen = true;
       document.getElementById('feedback-box').classList.add('hidden');
       document.getElementById('npc-dialog-level').innerText = levelLabel;
-      document.getElementById('npc-dialog-text').innerText = text;
+      typing.full = text; typing.n = 0; typing.acc = 0; typing.on = true;
+      document.getElementById('npc-dialog-text').innerText = '';
       document.getElementById('npc-dialog').classList.remove('hidden');
     }
+    function tickTyping(dt) {
+      if (!typing.on) return;
+      typing.acc += dt;
+      let moved = false;
+      while (typing.acc >= 30 && typing.n < typing.full.length) {
+        typing.acc -= 30; typing.n++; moved = true;
+        const ch = typing.full[typing.n - 1];
+        if (ch !== ' ' && typing.n % 2 === 0) sound.playTalk();
+      }
+      if (moved) document.getElementById('npc-dialog-text').innerText = typing.full.slice(0, typing.n);
+      if (typing.n >= typing.full.length) typing.on = false;
+    }
+    function finishTyping() {
+      typing.on = false; typing.n = typing.full.length;
+      document.getElementById('npc-dialog-text').innerText = typing.full;
+    }
+    // OK / Enter: the first press shows the whole line, the second one closes it
+    function nextDialogue() { if (typing.on) finishTyping(); else closeDialogue(); }
 
     function closeDialogue() {
+      typing.on = false;
       gameState.dialogueOpen = false;
       document.getElementById('npc-dialog').classList.add('hidden');
       advanceCutsceneDialogue();
+      if (gameState.victoryQueued && !gameState.dialogueOpen) { gameState.victoryQueued = false; startCipherExit(); return; }
+      maybeStartCipher();
     }
 
     function talkToProfessor() {
       showDialogue(getCurrentTaskText(), getLevelLabel());
     }
 
-    document.getElementById('npc-dialog-close').addEventListener('click', closeDialogue);
+    document.getElementById('npc-dialog-close').addEventListener('click', nextDialogue);
+    document.getElementById('cipher-ok').addEventListener('click', checkCipher);
+    document.getElementById('cipher-hint-btn').addEventListener('click', () => document.getElementById('cipher-strip').classList.toggle('hidden'));
+    document.getElementById('cipher-input').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); checkCipher(); } });
 
     // Enter closes the professor dialogue or the feedback box (same as OK)
     window.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
       if (gameState.dialogueOpen) {
         e.preventDefault();
-        closeDialogue();
+        nextDialogue();
         return;
       }
       const box = document.getElementById('feedback-box');
@@ -1576,10 +1934,33 @@
     });
 
     // --- GAME LOOP & UPDATES ---
+    let lastTickTs = Date.now();
+    function frameDt() { const n = Date.now(), d = Math.min(100, n - lastTickTs); lastTickTs = n; return d; }
+
+    function updateNetChip() { /* the countdown is intentionally hidden */ }
+
+    function tickNet(dt) {
+      const g = gameState;
+      if (g.net !== 'timer') return;
+      g.netLeft = Math.max(0, g.netLeft - dt);
+      updateNetChip(false);
+      if (g.netLeft <= 0) {
+        if (g.room === 2) startOutageCutscene();
+        else { // the switch in room 2 burns even while the player is away
+          g.net = 'down'; sound.playError();
+          showDialogue("Ви чули цей хлопок? У другій серверній щось сталося. Біжіть туди, схоже, це комутатор!", 'ТРИВОГА');
+        }
+      }
+    }
+
     function update() {
+      const dt = frameDt();
+      tickTyping(dt);
       if (gameState.completed || !gameState.gameStarted || gameState.isPaused) return;
       if (gameState.cutscene) { updateCutscene(); updateParticles(); return; }
-      if (gameState.pcOpen) return;
+      tickNet(dt);
+      if (gameState.cutscene) return;
+      if (gameState.pcOpen || gameState.cipherOpen) return;
 
       const p = gameState.player;
       let dx = 0;
@@ -1619,6 +2000,7 @@
         p.frame = 0;
       }
 
+      if (gameState.cable && gameState.cable.plugged != null && p.carriedItem !== gameState.cable) gameState.cable.plugged = null;
       followCamera(false);
       updateParticles();
     }
@@ -1660,11 +2042,16 @@
         tableSlots = generateTableSlots().map(s => ({ ...s, y: s.y + 16 }));
         const spots = shuffleArray(FLOOR_SPOTS);
         g.items = ['cooler', 'coffee', 'fire_extinguisher', 'keyboard', 'mouse', 'usb'].map((t, i) =>
-          ({ id: t, type: t, x: spots[i].x, y: spots[i].y, installed: false, currentSlot: null }));
+          ({ id: t, type: t, x: spots[i].x, y: spots[i].y, installed: false, currentSlot: null, startedOnFloor: true }));
       }
+      if (n === 2 && !saved) spawnReplacementCable();
       if (carried) g.items.push(carried);
       fadeAlpha = 1;
       updateTaskUI();
+      updateNetChip(true);
+      if (n === 2 && !saved) { g.net = 'timer'; g.netLeft = NET_TIMER_MS; updateNetChip(true); }
+      if (n === 2 && g.net === 'down' && !g.outageDone) { startOutageCutscene(); return; }
+      if (n === 2) maybeStartCipher();
       if (n === 2 && !saved) showDialogue("Сервер перегрівається! Знайдіть кулер. Один ПК теж зламаний.", 'РІВЕНЬ 2');
     }
 
@@ -1689,9 +2076,9 @@
 
     function afterRoom2Step(text) {
       updateTaskUI();
-      const done = gameState.coolerDone && gameState.pcFixed;
-      if (done) addXp(XP_RULES.levelComplete);
-      showDialogue(text + (done ? " Рівень 2 пройдено!" : ""),
+      const done = gameState.coolerDone && gameState.pcFixed && gameState.net === 'fixed' && !gameState.level2Done;
+      if (done) { gameState.level2Done = true; addXp(XP_RULES.levelComplete); gameState.cipherPending = true; }
+      showDialogue(text + (done ? " Рівень 2 пройдено!" + (gameState.room === 1 ? " Професор чекає у другій серверній." : "") : ""),
                    done ? 'РІВЕНЬ 2: ПРОЙДЕНО' : 'РІВЕНЬ 2');
     }
 
@@ -1924,7 +2311,10 @@
       }
       pcState.placed[k] = true; pcState.selected = null; sound.playPickup();
       msg.textContent = PC_PARTS[k].hint; renderPc();
-      if (Object.keys(pcState.placed).length === 3) { sound.playSuccess(); setTimeout(finishPc, 1400); }
+      if (Object.keys(pcState.placed).length === 3) {
+        gameState.pcFixed = true; sound.playSuccess(); updateTaskUI();
+        setTimeout(finishPc, 1400);
+      }
     }
 
     let pcLoopId = 0;
@@ -1949,11 +2339,14 @@
       document.getElementById('pc-modal').classList.add('hidden');
     }
     function finishPc() {
-      if (!gameState.pcOpen) return;
-      closePc(); gameState.pcFixed = true; spawnParticles(367, 140, '#10b981');
+      if (!gameState.pcFixed || gameState.pcAnnounced) return;
+      gameState.pcAnnounced = true;
+      if (gameState.pcOpen) closePc();
+      spawnParticles(367, 140, '#10b981');
       afterRoom2Step("Комп'ютер знову працює!");
     }
-    document.getElementById('pc-close').addEventListener('click', closePc);
+    // [НАЗАД] right after the last part still finishes the repair
+    document.getElementById('pc-close').addEventListener('click', () => { closePc(); finishPc(); });
 
     function drawDoor() {
       const open = gameState.room === 2 || gameState.currentTaskIdx >= TASKS_DATA.length;
@@ -2023,6 +2416,57 @@
       });
     }
 
+    function generateSwitch(ctx, w, h) {
+      const R = (c, x, y, a, b) => drawPixelRect(ctx, c, x, y, a, b);
+      R('#05080f', 0, 0, w, h);
+      R('#3a4660', 1, 1, w - 2, h - 2);
+      R('#55647f', 1, 1, w - 2, 2); R('#55647f', 1, 1, 2, h - 2);
+      R('#232c3f', w - 3, 1, 2, h - 2); R('#232c3f', 1, h - 5, w - 2, 4);
+      for (let i = 0; i < 4; i++) R('#1a2233', 5, 6 + i * 3, w - 10, 1);
+      R('#05080f', 5, 20, w - 10, 6); R('#1e3a8a', 6, 21, w - 12, 4); R('#93c5fd', 8, 22, 10, 1);
+      for (let row = 0; row < 2; row++) for (let i = 0; i < 4; i++) {
+        const px = 5 + i * 7, py = 30 + row * 10;
+        R('#05080f', px, py, 6, 6); R('#0f1522', px + 1, py + 1, 4, 4); R('#eab308', px + 1, py + 4, 4, 1);
+      }
+    }
+
+    function drawSwitch() {
+      const g = gameState, t = Date.now();
+      ctx.drawImage(sprites.get('net_switch', generateSwitch, SWITCH.w, SWITCH.h), SWITCH.x, SWITCH.y);
+      for (let row = 0; row < 2; row++) for (let i = 0; i < 4; i++) {
+        const k = i + row * 4; let col;
+        if (g.net === 'down' && g.room === 2) col = ( Math.floor(t / (140 + k * 41)) % 4 !== 0) ? '#3b1218' : '#ef4444';
+        else col = Math.floor(t / (220 + (k * 67) % 300)) % 3 === 0 ? '#86efac' : '#22c55e';
+        ctx.fillStyle = col; ctx.fillRect(SWITCH.x + 6 + i * 7, SWITCH.y + 28 + row * 10, 3, 2);
+      }
+      if (g.net === 'down' && g.room === 2) { // smoke and sparks
+        for (let i = 0; i < 7; i++) {
+          const k = (t * 0.035 + i * 13) % 56;
+          ctx.fillStyle = `rgba(148,163,184,${Math.max(0, 0.7 - k / 80)})`;
+          const sz = 4 + Math.floor(k / 14);
+          ctx.fillRect(Math.round(SWITCH.x + 8 + (i % 4) * 7 + Math.sin(k * 0.25 + i) * 4), Math.round(SWITCH.y - 2 - k * 0.7), sz, sz);
+        }
+        if (Math.floor(t / 180) % 3 === 0) {
+          ctx.fillStyle = '#facc15';
+          ctx.fillRect(SWITCH.x + 4 + ((t >> 5) % 28), SWITCH.y + 2 + ((t >> 6) % 16), 2, 2);
+        }
+      }
+    }
+
+    function drawCableLine() {
+      const g = gameState, p = g.player;
+      if (!p.carriedItem || p.carriedItem.type !== 'lancable' || p.carriedItem.plugged == null) return;
+      // plugged here: from the switch; plugged in the other room: the cable comes in through the door
+      const here = p.carriedItem.plugged === g.room;
+      const x0 = here ? SWITCH.x + 8 : 20, y0 = here ? SWITCH.y + 36 : 232, x1 = p.x + 12, y1 = p.y + 16;
+      const n = Math.max(8, Math.round(Math.hypot(x1 - x0, y1 - y0) / 3));
+      for (let i = 0; i <= n; i++) {
+        const u = i / n, x = Math.round(x0 + (x1 - x0) * u), y = Math.round(y0 + (y1 - y0) * u + Math.sin(u * Math.PI) * 12);
+        ctx.fillStyle = '#05080f'; ctx.fillRect(x - 1, y - 1, 4, 4);
+        ctx.fillStyle = '#f97316'; ctx.fillRect(x, y, 2, 2);
+      }
+    }
+
     function drawHint(text, hx, hy) {
       ctx.font = '8px "Press Start 2P", cursive';
       const hw = ctx.measureText(text).width;
@@ -2033,10 +2477,15 @@
 
     function drawRoomHints() {
       const g = gameState, p = g.player;
-      if (!g.gameStarted || g.dialogueOpen || g.cutscene || g.pcOpen) return;
+      if (!g.gameStarted || g.dialogueOpen || g.cutscene || g.pcOpen || g.cipherOpen) return;
       const cx = p.x + 12, cy = p.y + 12;
       if (Math.hypot(cx - 16, cy - 224) < 64) drawHint(g.room === 1 ? 'E: ДВЕРІ' : 'E: НАЗАД', 8, 186);
       if (g.room === 2 && !g.pcFixed && !p.carriedItem && Math.hypot(cx - 367, cy - 140) < 64) drawHint('E: ПОЛАГОДИТИ ПК', 290, 108);
+      if (g.net === 'down' && Math.hypot(cx - SWITCH_CENTER.x, cy - SWITCH_CENTER.y) < 70) {
+        const c = p.carriedItem;
+        if (c && c.type === 'lancable') drawHint(c.plugged === g.room ? 'ЦЕЙ КІНЕЦЬ ВЖЕ ТУТ' : 'E: ПІДКЛЮЧИТИ КАБЕЛЬ', SWITCH.x - 150, SWITCH.y - 8);
+        else if (g.room === 2) drawHint('ПОТРІБЕН НОВИЙ КАБЕЛЬ', SWITCH.x - 160, SWITCH.y - 8);
+      }
     }
 
     // --- PARALLAX / LIGHTING ---
@@ -2087,6 +2536,7 @@
         const bad = tb.id === 2 && i === 1 && !g.pcFixed;
         glow(tb.x + ox + 40, tb.y + 6, 50, bad ? '248,70,50' : '34,211,238', bad ? 0.2 + 0.1 * Math.sin(t * 12) : 0.22);
       }));
+      const sw = g.net === 'down' && g.room === 2; glow(SWITCH_CENTER.x, SWITCH_CENTER.y, 64, sw ? '248,70,50' : '74,222,128', sw ? 0.22 + 0.12 * Math.sin(t * 9) : 0.14);
       glow(p.x + 12, p.y + 12, 46, '255,200,140', 0.10);
       ctx.globalCompositeOperation = 'source-over';
       const vg = ctx.createRadialGradient(vx, vy, 120, vx, vy, 320);
@@ -2171,8 +2621,17 @@
         drawItemAt(item);
       });
 
-      // Render Professor NPC
-      const professorImg = sprites.get('professor', generateProfessorSprite, 32, 32);
+      const switchBehind = (pl.y + pl.h) >= SWITCH.y + 30;
+      if (switchBehind) drawSwitch();
+      drawCableLine();
+
+      // Professor NPC: sorted by feet, so he is in front of a player standing behind (above) him
+      const drawProfessor = () => {
+      const pdx = NPC.x - (NPC._lx === undefined ? NPC.x : NPC._lx), pdy = NPC.y - (NPC._ly === undefined ? NPC.y : NPC._ly);
+      NPC._lx = NPC.x; NPC._ly = NPC.y;
+      if (Math.abs(pdx) > 0.05 || Math.abs(pdy) > 0.05) NPC.dir = Math.abs(pdx) > Math.abs(pdy) ? (pdx > 0 ? 'right' : 'left') : (pdy > 0 ? 'down' : 'up');
+      const pFrame = NPC.walking ? Math.floor(Date.now() / 140) % 4 : 0;
+      const professorImg = sprites.get('prof_' + (NPC.dir || 'down') + '_' + pFrame, generateProfessorSprite, 32, 32);
       const joy = NPC.joy > 0 ? (NPC.joy--, Math.round(-Math.abs(Math.sin(Date.now() / 80)) * 6)) : 0;
       const npcBob = ((NPC.walking && Math.floor(Date.now() / 120) % 2) ? -1 : 0) + joy;
       ctx.drawImage(professorImg, Math.round(NPC.x) - 4, Math.round(NPC.y) - 8 + npcBob);
@@ -2191,6 +2650,9 @@
         ctx.fillStyle = '#e0f2fe';
         ctx.fillText(hint, hx, hy);
       }
+      };
+      const npcInFront = (gameState.player.y + gameState.player.h) <= NPC.y + NPC.h;
+      if (!npcInFront) drawProfessor();
 
       // Render Player
       const p = gameState.player;
@@ -2200,6 +2662,8 @@
         32, 32
       );
       ctx.drawImage(playerCanvas, Math.round(p.x) - 4, Math.round(p.y) - 8);
+
+      if (npcInFront) drawProfessor();
 
       // Render Carried Item AND Floating Item Name above player
       if (p.carriedItem) {
@@ -2223,6 +2687,8 @@
         ctx.fillStyle = '#fde047';
         ctx.fillText(itemName, lx, ly);
       }
+
+      if (!switchBehind) drawSwitch();
 
       // Desks the player is standing behind: drawn over the player
       deferredTables.forEach(table => {
@@ -2262,7 +2728,7 @@
     function updateTaskUI() {
       if (gameState.room === 2) {
         document.getElementById('status-text').innerText =
-          'РІВЕНЬ 2: ' + ((gameState.coolerDone ? 1 : 0) + (gameState.pcFixed ? 1 : 0)) + '/2';
+          'РІВЕНЬ 2: ' + ((gameState.coolerDone ? 1 : 0) + (gameState.pcFixed ? 1 : 0) + (gameState.net === 'fixed' ? 1 : 0)) + '/3';
         return;
       }
       const statusText = document.getElementById('status-text');
@@ -2306,6 +2772,9 @@
       camera.zoom = 1; camera.cx = V_WIDTH / 2; camera.cy = V_HEIGHT / 2;
       NPC.x = NPC_HOME.x; NPC.y = NPC_HOME.y; NPC.walking = false;
       gameState.room = 1; gameState.coolerDone = false; gameState.pcFixed = false;
+      gameState.net = 'idle'; gameState.netLeft = NET_TIMER_MS; gameState.cable = null; gameState.level2Done = false; gameState.pcAnnounced = false; updateNetChip(true);
+      gameState.cipherPending = false; gameState.cipherOpen = false; gameState.victoryQueued = false; gameState.outageDone = false; gameState.cipher = null;
+      document.getElementById('cipher-screen').classList.add('hidden');
       closePc(); fadeAlpha = 0;
       TABLES = TABLES_R1; Object.keys(roomStore).forEach(k => delete roomStore[k]);
       gameState.xp = 0; gameState.floaters = []; NPC.joy = 0; updateXpChip();
@@ -2396,6 +2865,15 @@
       requestAnimationFrame(gameLoop);
     }
 
+    function drawPortrait() {
+      const pc = document.getElementById('npc-portrait'); if (!pc) return;
+      const pctx = pc.getContext('2d'); pctx.imageSmoothingEnabled = false; pctx.clearRect(0, 0, pc.width, pc.height);
+      const pic = imgFor('prof_down_0');
+      if (pic) pctx.drawImage(pic, 6, 0, 20, 20, 0, 0, 32, 32);
+      else pctx.drawImage(sprites.get('professor', generateProfessorSprite, 32, 32), 4, 0, 24, 24, 0, 0, 32, 32);
+    }
+    function onImagesChanged() { if (IMG_CACHE && document.getElementById('npc-portrait')) drawPortrait(); if (typeof renderPc === 'function' && gameState.pcOpen) renderPc(); }
+
     window.onload = function() {
       initItems();
       updateTaskUI();
@@ -2403,7 +2881,7 @@
       followCamera(true);
       const portraitCtx = document.getElementById('npc-portrait').getContext('2d');
       portraitCtx.imageSmoothingEnabled = false;
-      portraitCtx.drawImage(sprites.get('professor', generateProfessorSprite, 32, 32), 4, 0, 24, 24, 0, 0, 32, 32);
+      drawPortrait();
       gameLoop();
     };
   </script>
